@@ -1,0 +1,36 @@
+{
+  "name": "moemoe",
+  "version": "2.0.0",
+  "description": "discord bot with AI integration, function calling, and additional configuration for power users",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/bot/index.js",
+    "dev": "tsx watch src/bot/index.ts",
+    "deploy": "tsx src/bot/deploy-commands.ts",
+    "deploy:global": "tsx src/bot/deploy-commands.ts --global",
+    "deploy:clear": "tsx src/bot/deploy-commands.ts --clear",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/conjureme/moemoe.git"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "ai",
+    "typescript"
+  ],
+  "author": "tyler",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/conjureme/moemoe/issues"
+  },
+  "homepage": "https://github.com/conjureme/moemoe#readme",
+  "dependencies": {
+    "discord.js": "^14.20.0",
+    "dotenv": "^16.5.0"
+  }
+}
