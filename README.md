@@ -9,7 +9,7 @@ a super customizable discord bot with personalities, memory, and a variety of ot
   <img src="https://img.shields.io/badge/status-early%20development-orange?style=flat-square" alt="Status">
 </p>
 
-## ✨ Features
+## Features
 
 - **customization** - create unique bot personalities with custom prompts, traits, and dialogue styles
 - **conversation memories** - maintains context across messages with intelligent memory management
@@ -18,7 +18,7 @@ a super customizable discord bot with personalities, memory, and a variety of ot
 - **per-channel memory** - separate conversation contexts for each channel
 - **permission configuration** - granular command permissions and moderation tools
 
-## 🚀 Quick Start
+## Getting Started
 
 ### Prerequisites
 
@@ -74,7 +74,7 @@ a super customizable discord bot with personalities, memory, and a variety of ot
    npm run dev
    ```
 
-## 🎮 Usage
+## Usage
 
 ### Basic Interaction
 
@@ -86,7 +86,7 @@ a super customizable discord bot with personalities, memory, and a variety of ot
 
 more coming soon
 
-## 🎨 Customization
+## Customization
 
 ### Creating Your Own Persona
 
@@ -102,7 +102,7 @@ Configure model parameters in `config/ai.json`:
 - custom stop sequences
 - and much more!
 
-## 🗺️ Roadmap
+## Roadmap
 
 ### Current Focus
 
@@ -123,7 +123,7 @@ Configure model parameters in `config/ai.json`:
 - [ ] multi-bot conversations
 - [ ] webhook integrations
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 moemoe/
@@ -140,7 +140,7 @@ moemoe/
 └── data/              # runtime data (memory, logs)
 ```
 
-## 🤝 Contributing
+## Contributing
 
 contributions are more than welcome! feel free to:
 
@@ -150,16 +150,14 @@ contributions are more than welcome! feel free to:
 - 📖 improve documentation
 - 🎨 share custom personas
 
-## 📝 License
+## License
 
 the moemoe project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - built with [discord.js](https://discord.js.org/)
 - massive thanks to the open-source AI community
-
----
 
 <p align="center">
   made with 💜 by tyler
