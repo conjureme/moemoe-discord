@@ -1,13 +1,7 @@
 import { Events, Message, ChannelType } from 'discord.js';
 import { Event } from '../types/discord';
 import { logger } from '../utils/logger';
-import { AIService } from '../services/ai/AIService';
-import { MemoryService } from '../services/memory/MemoryService';
-import { ConfigService } from '../services/config/ConfigService';
-
-const configService = new ConfigService();
-const memoryService = new MemoryService(configService);
-const aiService = new AIService(configService);
+import { serviceManager } from '../services/ServiceManager';
 
 const messageCreate: Event = {
   name: Events.MessageCreate,
@@ -26,6 +20,19 @@ const messageCreate: Event = {
         message.channel.sendTyping();
       }
 
+      const memoryService = serviceManager.getMemoryService();
+      const aiService = serviceManager.getAIService();
+
+      // log current state before adding message
+      logger.debug(`processing message in channel ${message.channelId}`);
+      const beforeContext = await memoryService.getChannelContext(
+        message.channelId,
+        message.guildId
+      );
+      logger.debug(
+        `messages in memory before adding: ${beforeContext.messages.length}`
+      );
+
       // add user message to memory
       await memoryService.addMessage({
         id: message.id,
@@ -43,6 +50,18 @@ const messageCreate: Event = {
         message.channelId,
         message.guildId
       );
+
+      logger.debug(
+        `messages in context after adding: ${context.messages.length}`
+      );
+      if (context.messages.length > 0) {
+        logger.debug(
+          `first message in context: ${context.messages[0]?.content.substring(0, 50)}...`
+        );
+        logger.debug(
+          `last message in context: ${context.messages[context.messages.length - 1]?.content.substring(0, 50)}...`
+        );
+      }
 
       // generate ai response
       const response = await aiService.generateResponse(context.messages);

@@ -156,6 +156,8 @@ export class MemoryService {
       authorName: message.author,
       content: message.content,
       timestamp: message.timestamp.toISOString(),
+      isBot: message.isBot,
+      botId: message.botId,
     };
 
     memory.messages.push(storedMessage);
@@ -190,6 +192,8 @@ export class MemoryService {
       authorId: msg.authorId,
       content: msg.content,
       timestamp: new Date(msg.timestamp),
+      isBot: msg.isBot,
+      botId: msg.botId,
     }));
 
     // get recent messages based on token limit
@@ -235,12 +239,41 @@ export class MemoryService {
 
   async clearChannel(channelId: string, guildId: string | null): Promise<void> {
     const cacheKey = this.getCacheKey(channelId, guildId);
-    this.memoryCache.delete(cacheKey);
+
+    // create empty memory to ensure clean state
+    const emptyMemory: ChannelMemory = {
+      channelId: channelId,
+      guildId: guildId,
+      messages: [],
+    };
+
+    // set empty memory in cache to prevent reload issues
+    this.memoryCache.set(cacheKey, emptyMemory);
 
     const filePath = this.getMemoryFilePath(channelId, guildId);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+
+    try {
+      if (fs.existsSync(filePath)) {
+        // synchronously delete to ensure it's gone
+        fs.unlinkSync(filePath);
+        logger.info(`deleted memory file for channel ${channelId}`);
+      }
+
+      if (fs.existsSync(filePath)) {
+        logger.error(`failed to delete memory file at ${filePath}`);
+        // try again with a small delay
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        if (fs.existsSync(filePath)) {
+          fs.rmSync(filePath, { force: true });
+        }
+      }
+
+      // remove from cache after ensuring file is deleted
+      this.memoryCache.delete(cacheKey);
       logger.info(`cleared memory for channel ${channelId}`);
+    } catch (error) {
+      logger.error(`error clearing memory for channel ${channelId}:`, error);
+      this.memoryCache.delete(cacheKey);
     }
   }
 

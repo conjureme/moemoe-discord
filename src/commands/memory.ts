@@ -5,11 +5,7 @@ import {
 } from 'discord.js';
 
 import { Command } from '../types/discord';
-import { MemoryService } from '../services/memory/MemoryService';
-import { ConfigService } from '../services/config/ConfigService';
-
-const configService = new ConfigService();
-const memoryService = new MemoryService(configService);
+import { serviceManager } from '../services/ServiceManager';
 
 const memory: Command = {
   data: new SlashCommandBuilder()
@@ -32,6 +28,7 @@ const memory: Command = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     const subcommand = interaction.options.getSubcommand();
+    const memoryService = serviceManager.getMemoryService();
 
     try {
       switch (subcommand) {
