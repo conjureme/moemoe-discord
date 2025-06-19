@@ -50,12 +50,32 @@ export class PromptBuilder {
     const botConfig = this.configService.getBotConfig();
     const messages: AIMessage[] = [];
 
+    // prepend example conversation turns if toggled
+    if (
+      botConfig.conversationPriming?.enabled &&
+      botConfig.conversationPriming.exchanges
+    ) {
+      for (const exchange of botConfig.conversationPriming.exchanges) {
+        messages.push({
+          role: 'user',
+          content: `[${exchange.userName}|${exchange.userId || '123456789'}]: ${exchange.userMessage}`,
+          name: exchange.userName,
+        });
+
+        messages.push({
+          role: 'assistant',
+          content: exchange.assistantResponse,
+          name: botConfig.name,
+        });
+      }
+    }
+
+    // add actual conversation history
     for (const msg of memoryMessages) {
       const isBot = msg.authorId === msg.botId || msg.isBot;
       const isSystem = msg.isSystem;
 
       if (isSystem) {
-        // system messages get their own role
         messages.push({
           role: 'system',
           content: msg.content,

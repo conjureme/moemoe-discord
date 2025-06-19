@@ -7,6 +7,17 @@ export interface BotConfig {
     examples: string;
     context: string;
   };
+  conversationPriming?: {
+    enabled: boolean;
+    exchanges: ConversationExchange[];
+  };
+}
+
+export interface ConversationExchange {
+  userName: string;
+  userId?: string;
+  userMessage: string;
+  assistantResponse: string;
 }
 
 export interface MemoryConfig {
