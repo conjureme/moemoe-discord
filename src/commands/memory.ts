@@ -2,6 +2,7 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
+  ChannelType,
 } from 'discord.js';
 
 import { Command } from '../types/discord';
@@ -11,11 +12,15 @@ const memory: Command = {
   data: new SlashCommandBuilder()
     .setName('memory')
     .setDescription('manage bot memory')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
     .addSubcommand((subcommand) =>
       subcommand
         .setName('clear')
         .setDescription('clear memory for this channel')
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName('clear-dm')
+        .setDescription('clear all your dm memories with the bot')
     )
     .addSubcommand((subcommand) =>
       subcommand.setName('stats').setDescription('show memory statistics')
@@ -33,6 +38,28 @@ const memory: Command = {
     try {
       switch (subcommand) {
         case 'clear': {
+          // check permissions only in guild channels
+          if (interaction.channel?.type !== ChannelType.DM) {
+            const member = interaction.member;
+            if (!member || typeof member.permissions === 'string') {
+              await interaction.reply({
+                content: 'unable to verify permissions',
+                flags: ['Ephemeral'],
+              });
+              return;
+            }
+
+            // check if user has manage messages permission in guilds
+            if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+              await interaction.reply({
+                content:
+                  'you need the "manage messages" permission to clear channel memory',
+                flags: ['Ephemeral'],
+              });
+              return;
+            }
+          }
+
           await memoryService.clearChannel(
             interaction.channelId,
             interaction.guildId
@@ -42,6 +69,25 @@ const memory: Command = {
             content: 'memory cleared for this channel',
             flags: ['Ephemeral'],
           });
+          break;
+        }
+
+        case 'clear-dm': {
+          const clearedCount = await memoryService.clearAllUserDMs(
+            interaction.user.id
+          );
+
+          if (clearedCount > 0) {
+            await interaction.reply({
+              content: `cleared ${clearedCount} dm conversation${clearedCount > 1 ? 's' : ''} with you`,
+              flags: ['Ephemeral'],
+            });
+          } else {
+            await interaction.reply({
+              content: 'no dm conversations found to clear',
+              flags: ['Ephemeral'],
+            });
+          }
           break;
         }
 
@@ -59,6 +105,16 @@ const memory: Command = {
               {
                 name: 'total messages',
                 value: stats.totalMessages.toString(),
+                inline: true,
+              },
+              {
+                name: 'dm channels',
+                value: stats.dmChannels.toString(),
+                inline: true,
+              },
+              {
+                name: 'guild channels',
+                value: stats.guildChannels.toString(),
                 inline: true,
               },
             ],

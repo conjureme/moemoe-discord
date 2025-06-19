@@ -1,5 +1,6 @@
 import { ExtendedClient } from './client';
 import { logger } from '../utils/logger';
+import { serviceManager } from '../services/ServiceManager';
 import * as dotenv from 'dotenv';
 
 // load environment variables
@@ -18,12 +19,26 @@ const client = new ExtendedClient();
 // handle process events for graceful shutdown
 process.on('SIGINT', () => {
   logger.info('received SIGINT, shutting down gracefully...');
+
+  // cleanup memory service file watchers
+  const memoryService = serviceManager.getMemoryService();
+  if (memoryService && typeof memoryService.cleanup === 'function') {
+    memoryService.cleanup();
+  }
+
   client.destroy();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   logger.info('received SIGTERM, shutting down gracefully...');
+
+  // cleanup memory service file watchers
+  const memoryService = serviceManager.getMemoryService();
+  if (memoryService && typeof memoryService.cleanup === 'function') {
+    memoryService.cleanup();
+  }
+
   client.destroy();
   process.exit(0);
 });

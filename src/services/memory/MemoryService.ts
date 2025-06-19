@@ -31,12 +31,14 @@ export class MemoryService {
   private memoryPath: string;
   private configService: ConfigService;
   private memoryCache: Map<string, ChannelMemory> = new Map();
+  private fileWatchers: Map<string, fs.FSWatcher> = new Map();
 
   constructor(configService: ConfigService) {
     this.configService = configService;
     this.memoryPath = path.join(process.cwd(), 'data', 'memory');
     this.ensureDirectories();
     this.loadAllMemories();
+    this.setupFileWatchers();
   }
 
   private ensureDirectories(): void {
@@ -54,11 +56,71 @@ export class MemoryService {
     }
   }
 
+  private setupFileWatchers(): void {
+    // watch the dm directory for file deletions
+    const dmDir = path.join(this.memoryPath, 'dm');
+    if (fs.existsSync(dmDir)) {
+      const dmWatcher = fs.watch(dmDir, (eventType, filename) => {
+        if (eventType === 'rename' && filename && filename.endsWith('.json')) {
+          const channelId = filename.replace('.json', '');
+          const filePath = path.join(dmDir, filename);
+
+          // check if file was deleted
+          if (!fs.existsSync(filePath)) {
+            const cacheKey = this.getCacheKey(channelId, null);
+            if (this.memoryCache.has(cacheKey)) {
+              this.memoryCache.delete(cacheKey);
+              logger.debug(`removed dm memory from cache: ${channelId}`);
+            }
+          }
+        }
+      });
+      this.fileWatchers.set('dm', dmWatcher);
+    }
+
+    // watch guild directories
+    const guildsDir = path.join(this.memoryPath, 'guilds');
+    if (fs.existsSync(guildsDir)) {
+      const guildIds = fs
+        .readdirSync(guildsDir)
+        .filter((f) => fs.statSync(path.join(guildsDir, f)).isDirectory());
+
+      for (const guildId of guildIds) {
+        this.watchGuildDirectory(guildId);
+      }
+    }
+  }
+
+  private watchGuildDirectory(guildId: string): void {
+    const guildDir = path.join(this.memoryPath, 'guilds', guildId);
+    if (fs.existsSync(guildDir)) {
+      const watcher = fs.watch(guildDir, (eventType, filename) => {
+        if (eventType === 'rename' && filename && filename.endsWith('.json')) {
+          const channelId = filename.replace('.json', '');
+          const filePath = path.join(guildDir, filename);
+
+          if (!fs.existsSync(filePath)) {
+            const cacheKey = this.getCacheKey(channelId, guildId);
+            if (this.memoryCache.has(cacheKey)) {
+              this.memoryCache.delete(cacheKey);
+              logger.debug(
+                `removed guild memory from cache: ${guildId}/${channelId}`
+              );
+            }
+          }
+        }
+      });
+      this.fileWatchers.set(`guild:${guildId}`, watcher);
+    }
+  }
+
   private getMemoryFilePath(channelId: string, guildId: string | null): string {
     if (guildId) {
       const guildDir = path.join(this.memoryPath, 'guilds', guildId);
       if (!fs.existsSync(guildDir)) {
         fs.mkdirSync(guildDir, { recursive: true });
+        // watch new guild directory
+        this.watchGuildDirectory(guildId);
       }
       return path.join(guildDir, `${channelId}.json`);
     } else {
@@ -197,7 +259,16 @@ export class MemoryService {
     channelId: string,
     guildId: string | null
   ): Promise<MemoryContext> {
+    // always check if the file exists first
+    const filePath = this.getMemoryFilePath(channelId, guildId);
     const cacheKey = this.getCacheKey(channelId, guildId);
+
+    // if file doesn't exist but cache does, clear the cache
+    if (!fs.existsSync(filePath) && this.memoryCache.has(cacheKey)) {
+      this.memoryCache.delete(cacheKey);
+      logger.debug(`cleared stale cache for ${cacheKey}`);
+    }
+
     const memory = this.memoryCache.get(cacheKey);
 
     if (!memory || memory.messages.length === 0) {
@@ -299,16 +370,73 @@ export class MemoryService {
     }
   }
 
-  getStats(): { totalChannels: number; totalMessages: number } {
-    let totalMessages = 0;
+  async clearAllUserDMs(userId: string): Promise<number> {
+    let clearedCount = 0;
 
-    for (const memory of this.memoryCache.values()) {
+    // check all dm memories for this user
+    const dmDir = path.join(this.memoryPath, 'dm');
+    if (!fs.existsSync(dmDir)) {
+      return clearedCount;
+    }
+
+    const dmFiles = fs.readdirSync(dmDir).filter((f) => f.endsWith('.json'));
+
+    for (const file of dmFiles) {
+      const channelId = file.replace('.json', '');
+      const cacheKey = this.getCacheKey(channelId, null);
+      const memory = this.memoryCache.get(cacheKey);
+
+      // check if this dm channel belongs to the user
+      if (memory && memory.messages.length > 0) {
+        const hasUserMessage = memory.messages.some(
+          (msg) => msg.authorId === userId && !msg.isBot
+        );
+
+        if (hasUserMessage) {
+          await this.clearChannel(channelId, null);
+          clearedCount++;
+          logger.debug(`cleared dm channel ${channelId} for user ${userId}`);
+        }
+      }
+    }
+
+    return clearedCount;
+  }
+
+  getStats(): {
+    totalChannels: number;
+    totalMessages: number;
+    dmChannels: number;
+    guildChannels: number;
+  } {
+    let totalMessages = 0;
+    let dmChannels = 0;
+    let guildChannels = 0;
+
+    for (const [key, memory] of this.memoryCache.entries()) {
       totalMessages += memory.messages.length;
+
+      if (key.startsWith('dm:')) {
+        dmChannels++;
+      } else {
+        guildChannels++;
+      }
     }
 
     return {
       totalChannels: this.memoryCache.size,
       totalMessages,
+      dmChannels,
+      guildChannels,
     };
+  }
+
+  // cleanup method for graceful shutdown
+  cleanup(): void {
+    for (const [key, watcher] of this.fileWatchers) {
+      watcher.close();
+    }
+    this.fileWatchers.clear();
+    logger.debug('cleaned up file watchers');
   }
 }
