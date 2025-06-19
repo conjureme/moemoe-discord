@@ -64,7 +64,6 @@ export class LocalProvider extends BaseProvider {
     try {
       logger.debug(`sending request to ${this.config.apiUrl}/v1/completions`);
 
-      // log the full prompt being sent
       logger.debug('=== PROMPT BEING SENT TO BACKEND ===');
       logger.debug(prompt);
       logger.debug('=== END PROMPT ===');
@@ -112,47 +111,51 @@ export class LocalProvider extends BaseProvider {
 
   private buildPrompt(context: ChatContext): string {
     const parts: string[] = [];
+    const fmt = this.config.formatting;
 
-    // add system prompt
-    parts.push(`<|im_start|>system\n${context.systemPrompt}<|im_end|>`);
+    parts.push(
+      `${fmt.system.prefix}${context.systemPrompt}${fmt.system.suffix}`
+    );
 
-    // add conversation history
     for (const message of context.messages) {
       if (message.role === 'user') {
-        parts.push(`<|im_start|>user\n${message.content}<|im_end|>`);
+        parts.push(`${fmt.user.prefix}${message.content}${fmt.user.suffix}`);
       } else if (message.role === 'assistant') {
-        parts.push(`<|im_start|>assistant\n${message.content}<|im_end|>`);
+        parts.push(
+          `${fmt.assistant.prefix}${message.content}${fmt.assistant.suffix}`
+        );
       }
     }
 
-    // start assistant response
-    parts.push('<|im_start|>assistant\n');
+    parts.push(fmt.assistant.prefix);
 
-    return parts.join('\n');
+    return parts.join('');
   }
 
   private cleanResponse(response: string): string {
     if (!response) return '';
 
     let cleaned = response;
+    const fmt = this.config.formatting;
 
-    // remove format tokens
     const tokensToRemove = [
-      '<|im_start|>',
-      '<|im_end|>',
-      '<|im_start|>user',
-      '<|im_start|>assistant',
-      '<|im_start|>system',
-      'user:',
-      'assistant:',
-      'system:',
+      fmt.system.prefix,
+      fmt.system.suffix,
+      fmt.user.prefix,
+      fmt.user.suffix,
+      fmt.assistant.prefix,
+      fmt.assistant.suffix,
     ];
 
-    for (const token of tokensToRemove) {
-      cleaned = cleaned.replace(new RegExp(token, 'g'), '');
+    const uniqueTokens = [...new Set(tokensToRemove)].filter(
+      (token) => token && token.length > 0
+    );
+
+    for (const token of uniqueTokens) {
+      const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      cleaned = cleaned.replace(new RegExp(escapedToken, 'g'), '');
     }
 
-    // clean up extra whitespace
     cleaned = cleaned.trim();
     cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
 
