@@ -23,17 +23,8 @@ const messageCreate: Event = {
       const memoryService = serviceManager.getMemoryService();
       const aiService = serviceManager.getAIService();
 
-      // log current state before adding message
       logger.debug(`processing message in channel ${message.channelId}`);
-      const beforeContext = await memoryService.getChannelContext(
-        message.channelId,
-        message.guildId
-      );
-      logger.debug(
-        `messages in memory before adding: ${beforeContext.messages.length}`
-      );
 
-      // add user message to memory
       await memoryService.addMessage({
         id: message.id,
         channelId: message.channelId,
@@ -45,38 +36,101 @@ const messageCreate: Event = {
         isBot: false,
       });
 
-      // get conversation context
       const context = await memoryService.getChannelContext(
         message.channelId,
         message.guildId
       );
 
-      logger.debug(
-        `messages in context after adding: ${context.messages.length}`
+      logger.debug(`messages in context: ${context.messages.length}`);
+
+      const response = await aiService.generateResponse(
+        context.messages,
+        message
       );
-      if (context.messages.length > 0) {
-        logger.debug(
-          `first message in context: ${context.messages[0]?.content.substring(0, 50)}...`
+
+      if (response.functionCalls && response.functionCalls.length > 0) {
+        logger.info(
+          `executing ${response.functionCalls.length} function calls`
         );
-        logger.debug(
-          `last message in context: ${context.messages[context.messages.length - 1]?.content.substring(0, 50)}...`
+
+        const functionResults = await aiService.executeFunctionCalls(
+          response.functionCalls,
+          message
         );
-      }
 
-      // generate ai response
-      const response = await aiService.generateResponse(context.messages);
+        if (response.content && response.content.trim().length > 0) {
+          const sentMessage = await message.reply(response.content);
+          await memoryService.addMessage({
+            id: sentMessage.id,
+            channelId: sentMessage.channelId,
+            guildId: sentMessage.guildId,
+            author: sentMessage.author.username,
+            authorId: sentMessage.author.id,
+            content: response.content,
+            timestamp: sentMessage.createdAt,
+            isBot: true,
+            botId: message.client.user!.id,
+          });
+        }
 
-      if (response && response.trim().length > 0) {
-        const sentMessage = await message.reply(response);
+        for (const result of functionResults) {
+          await memoryService.addMessage({
+            id: 'function-result-' + Date.now(),
+            channelId: message.channelId,
+            guildId: message.guildId,
+            author: 'System',
+            authorId: 'system',
+            content: result,
+            timestamp: new Date(),
+            isBot: true,
+            botId: message.client.user!.id,
+          });
+        }
 
-        // add bot response to memory with proper tagging
+        const updatedContext = await memoryService.getChannelContext(
+          message.channelId,
+          message.guildId
+        );
+
+        const followUpResponse = await aiService.generateResponse(
+          updatedContext.messages,
+          message
+        );
+
+        if (
+          followUpResponse.content &&
+          followUpResponse.content.trim().length > 0
+        ) {
+          if (!('send' in message.channel)) {
+            logger.error('cannot send follow-up message in this channel type');
+            return;
+          }
+          const followUpMessage = await message.channel.send(
+            followUpResponse.content
+          );
+
+          await memoryService.addMessage({
+            id: followUpMessage.id,
+            channelId: followUpMessage.channelId,
+            guildId: followUpMessage.guildId,
+            author: followUpMessage.author.username,
+            authorId: followUpMessage.author.id,
+            content: followUpResponse.content,
+            timestamp: followUpMessage.createdAt,
+            isBot: true,
+            botId: message.client.user!.id,
+          });
+        }
+      } else if (response.content && response.content.trim().length > 0) {
+        const sentMessage = await message.reply(response.content);
+
         await memoryService.addMessage({
           id: sentMessage.id,
           channelId: sentMessage.channelId,
           guildId: sentMessage.guildId,
           author: sentMessage.author.username,
           authorId: sentMessage.author.id,
-          content: response,
+          content: response.content,
           timestamp: sentMessage.createdAt,
           isBot: true,
           botId: message.client.user!.id,

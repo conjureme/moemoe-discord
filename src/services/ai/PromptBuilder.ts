@@ -1,19 +1,24 @@
 import { ConfigService } from '../config/ConfigService';
 import { MemoryMessage } from '../memory/types';
 import { AIMessage } from '../../types/ai';
+import { FunctionRegistry } from '../../functions/FunctionRegistry';
 
 export class PromptBuilder {
   private configService: ConfigService;
+  private functionRegistry: FunctionRegistry;
 
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    functionRegistry: FunctionRegistry
+  ) {
     this.configService = configService;
+    this.functionRegistry = functionRegistry;
   }
 
   buildSystemPrompt(): string {
     const botConfig = this.configService.getBotConfig();
     const template = botConfig.systemPrompt.template;
 
-    // replace template variables
     let prompt = template;
     prompt = prompt.replace(/{{bot_name}}/g, botConfig.name);
     prompt = prompt.replace(
@@ -33,6 +38,11 @@ export class PromptBuilder {
       botConfig.systemPrompt.context
     );
 
+    const functionPrompt = this.functionRegistry.generatePromptSection();
+    if (functionPrompt) {
+      prompt += functionPrompt;
+    }
+
     return prompt;
   }
 
@@ -41,18 +51,15 @@ export class PromptBuilder {
     const messages: AIMessage[] = [];
 
     for (const msg of memoryMessages) {
-      // check if this is a bot message
       const isBot = msg.authorId === msg.botId || msg.isBot;
 
       if (isBot) {
-        // bot messages are assistant messages
         messages.push({
           role: 'assistant',
           content: msg.content,
           name: msg.author,
         });
       } else {
-        // user message with name and id
         messages.push({
           role: 'user',
           content: `[${msg.author}|${msg.authorId}]: ${msg.content}`,

@@ -3,18 +3,34 @@ import { LocalProvider } from './providers/LocalProvider';
 import { PromptBuilder } from './PromptBuilder';
 import { ConfigService } from '../config/ConfigService';
 import { MemoryMessage } from '../memory/types';
+import {
+  FunctionRegistry,
+  FunctionCall,
+} from '../../functions/FunctionRegistry';
+import { FunctionContext } from '../../functions/BaseFunction';
 
 import { AIConfig, AIResponse, ChatContext } from '../../types/ai';
 import { logger } from '../../utils/logger';
+import { Message } from 'discord.js';
+
+export interface AIServiceResponse {
+  content: string;
+  functionCalls?: FunctionCall[];
+}
 
 export class AIService {
   private provider: BaseProvider;
   private promptBuilder: PromptBuilder;
   private configService: ConfigService;
+  private functionRegistry: FunctionRegistry;
 
   constructor(configService: ConfigService) {
     this.configService = configService;
-    this.promptBuilder = new PromptBuilder(configService);
+    this.functionRegistry = new FunctionRegistry();
+    this.promptBuilder = new PromptBuilder(
+      configService,
+      this.functionRegistry
+    );
 
     const aiConfig = this.configService.getAIConfig();
     this.provider = this.createProvider(aiConfig);
@@ -32,10 +48,10 @@ export class AIService {
   }
 
   async generateResponse(
-    conversationHistory: MemoryMessage[]
-  ): Promise<string> {
+    conversationHistory: MemoryMessage[],
+    message?: Message
+  ): Promise<AIServiceResponse> {
     try {
-      // build context
       const systemPrompt = this.promptBuilder.buildSystemPrompt();
       const messages = this.promptBuilder.buildMessages(conversationHistory);
 
@@ -44,7 +60,6 @@ export class AIService {
         messages,
       };
 
-      // generate response
       logger.debug(
         `generating response with ${messages.length} messages in context`
       );
@@ -56,11 +71,58 @@ export class AIService {
         );
       }
 
-      return response.content;
+      const functionCalls = this.functionRegistry.parseFunctionCalls(
+        response.content
+      );
+      const cleanContent = this.functionRegistry.removeFunctionCalls(
+        response.content
+      );
+
+      if (functionCalls.length > 0) {
+        logger.info(
+          `detected ${functionCalls.length} function calls in response`
+        );
+      }
+
+      return {
+        content: cleanContent,
+        functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
+      };
     } catch (error) {
       logger.error('failed to generate ai response:', error);
       throw error;
     }
+  }
+
+  async executeFunctionCalls(
+    functionCalls: FunctionCall[],
+    message: Message
+  ): Promise<string[]> {
+    const results: string[] = [];
+
+    const context: FunctionContext = {
+      message,
+      channelId: message.channelId,
+      guildId: message.guildId,
+      authorId: message.author.id,
+      authorName: message.author.username,
+    };
+
+    for (const call of functionCalls) {
+      const result = await this.functionRegistry.executeFunction(
+        call.name,
+        context,
+        call.args
+      );
+
+      const resultMessage = result.success
+        ? `[FUNCTION: ${call.name} - ${result.message}]`
+        : `[FUNCTION: ${call.name} failed - ${result.message}]`;
+
+      results.push(resultMessage);
+    }
+
+    return results;
   }
 
   validateConfiguration(): boolean {
@@ -69,5 +131,9 @@ export class AIService {
 
   getProviderName(): string {
     return this.provider.getName();
+  }
+
+  getFunctionRegistry(): FunctionRegistry {
+    return this.functionRegistry;
   }
 }
