@@ -1,0 +1,4 @@
+{
+  "maxMessagesPerChannel": 100,
+  "maxTokensInContext": 4000
+}

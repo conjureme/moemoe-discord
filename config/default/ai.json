@@ -1,0 +1,24 @@
+{
+  "provider": "local",
+  "apiUrl": "http://localhost:5000",
+  "maxTokens": 512,
+  "temperature": 1.0,
+  "topP": 0.9,
+  "topK": 0,
+  "repetitionPenalty": 1.0,
+  "stopSequences": ["<|im_end|>", "<|im_start|>", "\nuser:", "\nassistant:"],
+  "formatting": {
+    "system": {
+      "prefix": "<|im_start|>system\n",
+      "suffix": "<|im_end|>\n"
+    },
+    "user": {
+      "prefix": "<|im_start|>user\n",
+      "suffix": "<|im_end|>\n"
+    },
+    "assistant": {
+      "prefix": "<|im_start|>assistant\n",
+      "suffix": "<|im_end|>\n"
+    }
+  }
+}

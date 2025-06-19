@@ -1,16 +1,21 @@
 import { Events, Message, ChannelType } from 'discord.js';
 import { Event } from '../types/discord';
 import { logger } from '../utils/logger';
+import { AIService } from '../services/ai/AIService';
+import { MemoryService } from '../services/memory/MemoryService';
+import { ConfigService } from '../services/config/ConfigService';
+
+const configService = new ConfigService();
+const memoryService = new MemoryService(configService);
+const aiService = new AIService(configService);
 
 const messageCreate: Event = {
   name: Events.MessageCreate,
   once: false,
 
   async execute(message: Message) {
-    // ignore bot messages
     if (message.author.bot) return;
 
-    // check if bot is mentioned or if this is a DM
     const isMentioned = message.mentions.has(message.client.user!);
     const isDM = message.channel.type === ChannelType.DM;
 
@@ -18,19 +23,46 @@ const messageCreate: Event = {
 
     try {
       if ('send' in message.channel) {
-        // set typing indicator
         message.channel.sendTyping();
       }
 
-      // placeholder for AI response - will be implemented when AI service is ready
-      logger.info(
-        `message received from [${message.author.tag}|${message.author.id}]: ${message.content}`
+      // add user message to memory
+      await memoryService.addMessage({
+        id: message.id,
+        channelId: message.channelId,
+        guildId: message.guildId,
+        author: message.author.username,
+        authorId: message.author.id,
+        content: message.content,
+        timestamp: message.createdAt,
+        isBot: false,
+      });
+
+      // get conversation context
+      const context = await memoryService.getChannelContext(
+        message.channelId,
+        message.guildId
       );
 
-      // temporary response
-      await message.reply(
-        "hey! i'm still being set up. check back soon for actual conversations!"
-      );
+      // generate ai response
+      const response = await aiService.generateResponse(context.messages);
+
+      if (response && response.trim().length > 0) {
+        const sentMessage = await message.reply(response);
+
+        // add bot response to memory with proper tagging
+        await memoryService.addMessage({
+          id: sentMessage.id,
+          channelId: sentMessage.channelId,
+          guildId: sentMessage.guildId,
+          author: sentMessage.author.username,
+          authorId: sentMessage.author.id,
+          content: response,
+          timestamp: sentMessage.createdAt,
+          isBot: true,
+          botId: message.client.user!.id,
+        });
+      }
     } catch (error) {
       logger.error('error handling message:', error);
 
