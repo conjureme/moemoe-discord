@@ -5,6 +5,7 @@ import {
   FunctionDefinition,
 } from '../BaseFunction';
 import { logger } from '../../utils/logger';
+import { serviceManager } from '../../services/ServiceManager';
 
 export class SendDMFunction extends BaseFunction {
   definition: FunctionDefinition = {
@@ -74,8 +75,26 @@ export class SendDMFunction extends BaseFunction {
       }
 
       try {
-        await user.send(message);
+        const sentMessage = await user.send(message);
         logger.info(`sent DM to ${user.username} (${user.id})`);
+
+        // add the sent DM to memory
+        const memoryService = serviceManager.getMemoryService();
+
+        // store bot's message in the DM channel
+        await memoryService.addMessage({
+          id: sentMessage.id,
+          channelId: sentMessage.channelId,
+          guildId: null, // DMs have no guild
+          author: sentMessage.author.username,
+          authorId: sentMessage.author.id,
+          content: message,
+          timestamp: sentMessage.createdAt,
+          isBot: true,
+          botId: context.message.client.user!.id,
+        });
+
+        logger.debug(`saved DM to memory for channel ${sentMessage.channelId}`);
 
         return {
           success: true,
@@ -84,6 +103,7 @@ export class SendDMFunction extends BaseFunction {
             username: user.username,
             userId: user.id,
             messageLength: message.length,
+            dmChannelId: sentMessage.channelId,
           },
         };
       } catch (error) {

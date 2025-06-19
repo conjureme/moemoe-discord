@@ -48,7 +48,7 @@ export class FunctionRegistry {
 
     prompt += '\nexample: {{send_dm(user_id="123456789", message="hello!")}}\n';
     prompt +=
-      'You will see the result as [FUNCTION: result message] in the conversation.\n';
+      'You will see the result as [FUNCTION: result message] in the conversation.\nNever display the function result message.\n';
 
     return prompt;
   }
