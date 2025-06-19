@@ -19,6 +19,7 @@ interface StoredMessage {
   timestamp: string;
   isBot?: boolean;
   botId?: string;
+  isSystem?: boolean;
 }
 
 interface MemoryContext {
@@ -158,6 +159,7 @@ export class MemoryService {
       timestamp: message.timestamp.toISOString(),
       isBot: message.isBot,
       botId: message.botId,
+      isSystem: message.isSystem,
     };
 
     memory.messages.push(storedMessage);
@@ -170,6 +172,25 @@ export class MemoryService {
     }
 
     this.saveChannelMemory(message.channelId, message.guildId);
+  }
+
+  async addSystemMessage(message: {
+    channelId: string;
+    guildId: string | null;
+    content: string;
+    timestamp: Date;
+  }): Promise<void> {
+    await this.addMessage({
+      id: 'system-' + Date.now(),
+      channelId: message.channelId,
+      guildId: message.guildId,
+      author: 'System',
+      authorId: 'system',
+      content: message.content,
+      timestamp: message.timestamp,
+      isBot: false,
+      isSystem: true,
+    });
   }
 
   async getChannelContext(
@@ -194,6 +215,7 @@ export class MemoryService {
       timestamp: new Date(msg.timestamp),
       isBot: msg.isBot,
       botId: msg.botId,
+      isSystem: msg.isSystem,
     }));
 
     // get recent messages based on token limit

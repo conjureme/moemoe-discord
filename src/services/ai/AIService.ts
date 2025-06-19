@@ -16,6 +16,7 @@ import { Message } from 'discord.js';
 export interface AIServiceResponse {
   content: string;
   functionCalls?: FunctionCall[];
+  rawContent?: string; // keep the original content with function calls
 }
 
 export class AIService {
@@ -86,6 +87,7 @@ export class AIService {
 
       return {
         content: cleanContent,
+        rawContent: response.content, // keep original with function calls
         functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
       };
     } catch (error) {

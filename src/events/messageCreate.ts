@@ -58,32 +58,44 @@ const messageCreate: Event = {
           message
         );
 
+        // send the clean content (without function calls) to discord
         if (response.content && response.content.trim().length > 0) {
           const sentMessage = await message.reply(response.content);
+
+          // store the RAW content (with function calls) in memory
           await memoryService.addMessage({
             id: sentMessage.id,
             channelId: sentMessage.channelId,
             guildId: sentMessage.guildId,
             author: sentMessage.author.username,
             authorId: sentMessage.author.id,
-            content: response.content,
+            content: response.rawContent || response.content, // use raw content
             timestamp: sentMessage.createdAt,
+            isBot: true,
+            botId: message.client.user!.id,
+          });
+        } else {
+          // if no visible content, still store the function calls in memory
+          await memoryService.addMessage({
+            id: 'function-call-' + Date.now(),
+            channelId: message.channelId,
+            guildId: message.guildId,
+            author: message.client.user!.username,
+            authorId: message.client.user!.id,
+            content: response.rawContent || '', // store the function calls
+            timestamp: new Date(),
             isBot: true,
             botId: message.client.user!.id,
           });
         }
 
+        // store function results as system messages
         for (const result of functionResults) {
-          await memoryService.addMessage({
-            id: 'function-result-' + Date.now(),
+          await memoryService.addSystemMessage({
             channelId: message.channelId,
             guildId: message.guildId,
-            author: 'System',
-            authorId: 'system',
             content: result,
             timestamp: new Date(),
-            isBot: true,
-            botId: message.client.user!.id,
           });
         }
 
@@ -115,7 +127,7 @@ const messageCreate: Event = {
             guildId: followUpMessage.guildId,
             author: followUpMessage.author.username,
             authorId: followUpMessage.author.id,
-            content: followUpResponse.content,
+            content: followUpResponse.rawContent || followUpResponse.content,
             timestamp: followUpMessage.createdAt,
             isBot: true,
             botId: message.client.user!.id,
@@ -130,7 +142,7 @@ const messageCreate: Event = {
           guildId: sentMessage.guildId,
           author: sentMessage.author.username,
           authorId: sentMessage.author.id,
-          content: response.content,
+          content: response.rawContent || response.content,
           timestamp: sentMessage.createdAt,
           isBot: true,
           botId: message.client.user!.id,

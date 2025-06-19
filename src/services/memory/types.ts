@@ -8,4 +8,5 @@ export interface MemoryMessage {
   timestamp: Date;
   isBot?: boolean;
   botId?: string;
+  isSystem?: boolean;
 }

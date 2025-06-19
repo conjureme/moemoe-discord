@@ -244,6 +244,11 @@ export class LocalProvider extends BaseProvider {
         parts.push(
           `${fmt.assistant.prefix}${message.content}${fmt.assistant.suffix}`
         );
+      } else if (message.role === 'system') {
+        // system messages (like function results) use system formatting
+        parts.push(
+          `${fmt.system.prefix}${message.content}${fmt.system.suffix}`
+        );
       }
     }
 

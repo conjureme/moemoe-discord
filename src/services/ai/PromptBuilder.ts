@@ -52,8 +52,16 @@ export class PromptBuilder {
 
     for (const msg of memoryMessages) {
       const isBot = msg.authorId === msg.botId || msg.isBot;
+      const isSystem = msg.isSystem;
 
-      if (isBot) {
+      if (isSystem) {
+        // system messages get their own role
+        messages.push({
+          role: 'system',
+          content: msg.content,
+          name: 'System',
+        });
+      } else if (isBot) {
         messages.push({
           role: 'assistant',
           content: msg.content,
