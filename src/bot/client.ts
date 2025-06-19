@@ -1,4 +1,4 @@
-import { Client, Collection, GatewayIntentBits } from 'discord.js';
+import { Client, Collection, GatewayIntentBits, Partials } from 'discord.js';
 import { Command } from '../types/discord';
 import { logger } from '../utils/logger';
 import { commandRegistry } from '../commands';
@@ -16,6 +16,7 @@ export class ExtendedClient extends Client {
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.DirectMessages,
       ],
+      partials: [Partials.Channel],
     });
 
     this.commands = new Collection();
