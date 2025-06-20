@@ -2,6 +2,7 @@ import { Events, Message, ChannelType } from 'discord.js';
 import { Event } from '../types/discord';
 import { logger } from '../utils/logger';
 import { serviceManager } from '../services/ServiceManager';
+import { removeUnicodeEmojis } from '../utils/emojiFilter';
 
 const messageCreate: Event = {
   name: Events.MessageCreate,
@@ -48,6 +49,12 @@ const messageCreate: Event = {
         message
       );
 
+      // filter unicode emojis from the response
+      const filteredContent = removeUnicodeEmojis(response.content);
+      const filteredRawContent = response.rawContent
+        ? removeUnicodeEmojis(response.rawContent)
+        : filteredContent;
+
       if (response.functionCalls && response.functionCalls.length > 0) {
         logger.info(
           `executing ${response.functionCalls.length} function calls`
@@ -59,8 +66,8 @@ const messageCreate: Event = {
         );
 
         // send the clean content (without function calls) to discord
-        if (response.content && response.content.trim().length > 0) {
-          const sentMessage = await message.reply(response.content);
+        if (filteredContent && filteredContent.trim().length > 0) {
+          const sentMessage = await message.reply(filteredContent);
 
           // store the RAW content (with function calls) in memory
           await memoryService.addMessage({
@@ -69,7 +76,7 @@ const messageCreate: Event = {
             guildId: sentMessage.guildId,
             author: sentMessage.author.username,
             authorId: sentMessage.author.id,
-            content: response.rawContent || response.content, // use raw content
+            content: filteredRawContent, // use filtered raw content
             timestamp: sentMessage.createdAt,
             isBot: true,
             botId: message.client.user!.id,
@@ -82,7 +89,7 @@ const messageCreate: Event = {
             guildId: message.guildId,
             author: message.client.user!.username,
             authorId: message.client.user!.id,
-            content: response.rawContent || '', // store the function calls
+            content: filteredRawContent, // store the filtered function calls
             timestamp: new Date(),
             isBot: true,
             botId: message.client.user!.id,
@@ -109,17 +116,18 @@ const messageCreate: Event = {
           message
         );
 
-        if (
-          followUpResponse.content &&
-          followUpResponse.content.trim().length > 0
-        ) {
+        // filter emojis from follow-up response too
+        const filteredFollowUp = removeUnicodeEmojis(followUpResponse.content);
+        const filteredFollowUpRaw = followUpResponse.rawContent
+          ? removeUnicodeEmojis(followUpResponse.rawContent)
+          : filteredFollowUp;
+
+        if (filteredFollowUp && filteredFollowUp.trim().length > 0) {
           if (!('send' in message.channel)) {
             logger.error('cannot send follow-up message in this channel type');
             return;
           }
-          const followUpMessage = await message.channel.send(
-            followUpResponse.content
-          );
+          const followUpMessage = await message.channel.send(filteredFollowUp);
 
           await memoryService.addMessage({
             id: followUpMessage.id,
@@ -127,14 +135,14 @@ const messageCreate: Event = {
             guildId: followUpMessage.guildId,
             author: followUpMessage.author.username,
             authorId: followUpMessage.author.id,
-            content: followUpResponse.rawContent || followUpResponse.content,
+            content: filteredFollowUpRaw,
             timestamp: followUpMessage.createdAt,
             isBot: true,
             botId: message.client.user!.id,
           });
         }
-      } else if (response.content && response.content.trim().length > 0) {
-        const sentMessage = await message.reply(response.content);
+      } else if (filteredContent && filteredContent.trim().length > 0) {
+        const sentMessage = await message.reply(filteredContent);
 
         await memoryService.addMessage({
           id: sentMessage.id,
@@ -142,7 +150,7 @@ const messageCreate: Event = {
           guildId: sentMessage.guildId,
           author: sentMessage.author.username,
           authorId: sentMessage.author.id,
-          content: response.rawContent || response.content,
+          content: filteredRawContent,
           timestamp: sentMessage.createdAt,
           isBot: true,
           botId: message.client.user!.id,
