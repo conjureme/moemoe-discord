@@ -1,6 +1,9 @@
 import { BaseFunction, FunctionContext, FunctionResult } from './BaseFunction';
-import { SendDMFunction } from './implementations/SendDM';
 import { logger } from '../utils/logger';
+
+import { SendDMFunction } from './implementations/SendDM';
+import { UpdateBioFunction } from './implementations/UpdateBio';
+import { UpdateStatusFunction } from './implementations/UpdateStatus';
 
 export interface FunctionCall {
   name: string;
@@ -16,6 +19,8 @@ export class FunctionRegistry {
 
   private registerDefaults(): void {
     this.register(new SendDMFunction());
+    this.register(new UpdateBioFunction());
+    this.register(new UpdateStatusFunction());
   }
 
   register(func: BaseFunction): void {
