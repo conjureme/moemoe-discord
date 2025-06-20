@@ -11,17 +11,6 @@ const ready: Event = {
 
     logger.success(`bot is online as ${client.user.tag}`);
     logger.info(`serving ${client.guilds.cache.size} guilds`);
-
-    // set presence
-    client.user.setPresence({
-      activities: [
-        {
-          name: '',
-          type: 4,
-        },
-      ],
-      status: 'online',
-    });
   },
 };
 
