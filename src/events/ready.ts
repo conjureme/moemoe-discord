@@ -16,8 +16,8 @@ const ready: Event = {
     client.user.setPresence({
       activities: [
         {
-          name: 'YOASOBI',
-          type: 2,
+          name: '',
+          type: 4,
         },
       ],
       status: 'online',
