@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { SendDMFunction } from './implementations/SendDM';
 import { UpdateBioFunction } from './implementations/UpdateBio';
 import { UpdateStatusFunction } from './implementations/UpdateStatus';
+import { ExecuteCommandFunction } from './implementations/ExecuteCommand';
 
 export interface FunctionCall {
   name: string;
@@ -21,6 +22,7 @@ export class FunctionRegistry {
     this.register(new SendDMFunction());
     this.register(new UpdateBioFunction());
     this.register(new UpdateStatusFunction());
+    this.register(new ExecuteCommandFunction());
   }
 
   register(func: BaseFunction): void {
@@ -40,9 +42,25 @@ export class FunctionRegistry {
     const functions = this.getAllFunctions();
     if (functions.length === 0) return '';
 
-    let prompt = '\n\n### Available Functions\n';
+    let prompt = '\n\n### Function Calling Rules\n';
     prompt +=
-      'You can call functions using this format: {{function_name(param1="value1", param2="value2")}}\n\n';
+      'CRITICAL: You have access to functions, but you must ONLY use them when:\n';
+    prompt +=
+      '1. The user EXPLICITLY asks you to perform the action (e.g., "send a dm to...", "update your status to...", "change your bio")\n';
+    prompt += '2. The user gives clear permission or instructions to do so\n';
+    prompt +=
+      '3. NEVER use functions just because they were mentioned in conversation\n\n';
+
+    prompt += 'DO NOT use functions when:\n';
+    prompt += '- Users are just chatting or making conversation\n';
+    prompt +=
+      '- Someone mentions DMs, status, or bio without asking you to change them\n';
+    prompt += '- You think it would be funny or relevant to the conversation\n';
+    prompt +=
+      '- Users are talking about these features without directing you to use them\n\n';
+
+    prompt += 'Format: {{function_name(param1="value1", param2="value2")}}\n\n';
+    prompt += 'Available functions:\n';
 
     for (const func of functions) {
       prompt += `- ${func.formatForPrompt()}\n`;
@@ -54,6 +72,23 @@ export class FunctionRegistry {
     prompt += '\nexample: {{send_dm(user_id="123456789", message="hello!")}}\n';
     prompt +=
       'You will see the result as a system message.\nNever display the function result message to the user.\n';
+
+    prompt += '\nExamples of when to use functions:\n';
+    prompt +=
+      '✓ User: "send a dm to <@860733331532808213> saying hello" → USE send_dm function\n';
+    prompt +=
+      '✓ User: "update your status to playing minecraft" → USE update_status function\n';
+    prompt +=
+      '✓ User: "change your bio to something cool" → USE update_bio function\n\n';
+
+    prompt += 'Examples of when NOT to use functions:\n';
+    prompt += '✗ User: "i got a weird dm yesterday" → DO NOT use send_dm\n';
+    prompt += '✗ User: "your status is funny" → DO NOT use update_status\n';
+    prompt += '✗ User: "bios are important" → DO NOT use update_bio\n';
+    prompt += '✗ User: "tyler loves getting dms" → DO NOT use send_dm\n\n';
+
+    prompt +=
+      'Remember: Only call functions when given a direct command or explicit permission. When in doubt, do NOT use functions.\n';
 
     return prompt;
   }
