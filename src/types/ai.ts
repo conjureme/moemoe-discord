@@ -104,6 +104,10 @@ export interface AIResponse {
 }
 
 export interface ChatContext {
-  messages: AIMessage[];
+  messages: (AIMessage | VisionMessage)[];
   systemPrompt: string;
+}
+
+export interface VisionMessage extends AIMessage {
+  images?: string[]; // images will be base64 encoded
 }

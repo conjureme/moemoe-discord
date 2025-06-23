@@ -9,4 +9,12 @@ export interface MemoryMessage {
   isBot?: boolean;
   botId?: string;
   isSystem?: boolean;
+  attachments?: MessageAttachment[];
+}
+
+export interface MessageAttachment {
+  url: string;
+  type: string;
+  name: string;
+  size: number;
 }
