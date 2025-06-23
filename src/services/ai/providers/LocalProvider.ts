@@ -4,6 +4,7 @@ import { logger } from '../../../utils/logger';
 
 interface LocalAIResponse {
   choices?: Array<{ text?: string }>;
+  results?: Array<{ text?: string }>;
   text?: string;
   content?: string;
   usage?: {
@@ -42,7 +43,7 @@ export class LocalProvider extends BaseProvider {
     // build request body with only defined parameters
     const requestBody: any = {
       prompt,
-      max_tokens: this.config.maxTokens,
+      max_length: this.config.maxTokens,
       temperature: this.config.temperature,
       stop: this.config.stopSequences,
     };
@@ -180,15 +181,15 @@ export class LocalProvider extends BaseProvider {
     requestBody.nsigma = 0;
 
     try {
-      logger.debug(`sending request to ${this.config.apiUrl}/v1/completions`);
+      logger.debug(`sending request to ${this.config.apiUrl}/api/v1/generate`);
 
-      // log the full prompt being sent
+      // log the full request body being sent
 
-      logger.debug('=== PROMPT BEING SENT TO BACKEND ===');
-      logger.debug(prompt);
-      logger.debug('=== END PROMPT ===');
+      logger.debug('=== REQUEST BEING SENT TO BACKEND ===');
+      logger.debug(JSON.stringify(requestBody));
+      logger.debug('=== END REQUEST ===');
 
-      const response = await fetch(`${this.config.apiUrl}/v1/completions`, {
+      const response = await fetch(`${this.config.apiUrl}/api/v1/generate`, {
         method: 'POST',
         headers: this.getBaseHeaders(),
         body: JSON.stringify(requestBody),
@@ -201,9 +202,20 @@ export class LocalProvider extends BaseProvider {
       }
 
       const data: LocalAIResponse = await response.json();
+      logger.debug('raw API response:', JSON.stringify(data, null, 2));
 
       let generatedText = '';
-      if (data.choices && data.choices.length > 0 && data.choices[0].text) {
+      if (
+        data.results &&
+        Array.isArray(data.results) &&
+        data.results.length > 0
+      ) {
+        generatedText = data.results[0].text || '';
+      } else if (
+        data.choices &&
+        data.choices.length > 0 &&
+        data.choices[0].text
+      ) {
         generatedText = data.choices[0].text;
       } else if (data.text) {
         generatedText = data.text;
