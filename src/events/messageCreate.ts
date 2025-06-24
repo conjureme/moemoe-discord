@@ -26,6 +26,23 @@ const messageCreate: Event = {
 
       logger.debug(`processing message in channel ${message.channelId}`);
 
+      const imageAttachments = message.attachments.filter(
+        (attachment) =>
+          attachment.contentType?.startsWith('image/') ||
+          /\.(jpg|jpeg|png|gif|webp)$/i.test(attachment.name || '')
+      );
+
+      logger.debug(`found ${imageAttachments.size} image attachments`);
+      logger.debug(
+        `image attachments: ${JSON.stringify(
+          Array.from(imageAttachments.values()).map((att) => ({
+            url: att.url,
+            type: att.contentType,
+            name: att.name,
+          }))
+        )}`
+      );
+
       await memoryService.addMessage({
         id: message.id,
         channelId: message.channelId,
@@ -35,6 +52,12 @@ const messageCreate: Event = {
         content: message.content,
         timestamp: message.createdAt,
         isBot: false,
+        attachments: imageAttachments.map((att) => ({
+          url: att.url,
+          type: att.contentType || 'image/unknown',
+          name: att.name || 'image',
+          size: att.size,
+        })),
       });
 
       const context = await memoryService.getChannelContext(

@@ -1,7 +1,9 @@
 import { ConfigService } from '../config/ConfigService';
 import { MemoryMessage } from '../memory/types';
-import { AIMessage } from '../../types/ai';
+import { AIMessage, VisionMessage } from '../../types/ai';
 import { FunctionRegistry } from '../../functions/FunctionRegistry';
+
+import { logger } from '../../utils/logger';
 
 export class PromptBuilder {
   private configService: ConfigService;
@@ -88,11 +90,33 @@ export class PromptBuilder {
           name: msg.author,
         });
       } else {
-        messages.push({
+        // for user messages, check if there are image attachments
+        const userMessage: AIMessage | VisionMessage = {
           role: 'user',
           content: `[${msg.author}|${msg.authorId}]: ${msg.content}`,
           name: msg.author,
-        });
+        };
+
+        // add images if present
+        if (msg.attachments && msg.attachments.length > 0) {
+          logger.debug(`message has ${msg.attachments.length} attachments`);
+          const imageAttachments = msg.attachments.filter((att) =>
+            att.type.startsWith('image/')
+          );
+          logger.debug(
+            `filtered to ${imageAttachments.length} image attachments`
+          );
+          if (imageAttachments.length > 0) {
+            (userMessage as VisionMessage).images = imageAttachments.map(
+              (att) => att.url
+            );
+            logger.debug(
+              `added images to message: ${JSON.stringify((userMessage as VisionMessage).images)}`
+            );
+          }
+        }
+
+        messages.push(userMessage);
       }
     }
 

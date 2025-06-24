@@ -1,5 +1,5 @@
 import { BaseProvider } from './BaseProvider';
-import { AIResponse, ChatContext } from '../../../types/ai';
+import { AIResponse, ChatContext, VisionMessage } from '../../../types/ai';
 import { logger } from '../../../utils/logger';
 
 interface LocalAIResponse {
@@ -38,6 +38,37 @@ export class LocalProvider extends BaseProvider {
       throw new Error('invalid configuration for local ai provider');
     }
 
+    // extract images from context
+    const images: string[] = [];
+
+    // collect all base64 images from vision messages
+    for (const message of context.messages) {
+      if (message.role === 'user') {
+        const visionMessage = message as VisionMessage;
+        logger.debug(
+          `checking message for images: ${JSON.stringify(visionMessage.images)}`
+        );
+        if (visionMessage.images && visionMessage.images.length > 0) {
+          // fetch and convert images to base64
+          for (const imageUrl of visionMessage.images) {
+            const base64 = await this.fetchImageAsBase64(imageUrl);
+            if (base64) {
+              // remove the data URI prefix if present
+              const base64Data = base64.replace(
+                /^data:image\/[a-z]+;base64,/,
+                ''
+              );
+              images.push(base64Data);
+            }
+          }
+        }
+      }
+    }
+
+    // model used LOVES to lie about not being able to see the image.
+    // it seems the longer the system prompt/conversation is the more likely it is to lie
+    logger.debug(`found ${images.length} images in context messages`);
+
     const prompt = this.buildPrompt(context);
 
     // build request body with only defined parameters
@@ -47,6 +78,11 @@ export class LocalProvider extends BaseProvider {
       temperature: this.config.temperature,
       stop: this.config.stopSequences,
     };
+
+    if (images.length > 0) {
+      requestBody.images = images;
+      logger.debug(`including ${images.length} images in request`);
+    }
 
     // add optional parameters if defined
     // huge massive colorful chunk of conditionals
@@ -184,10 +220,19 @@ export class LocalProvider extends BaseProvider {
       logger.debug(`sending request to ${this.config.apiUrl}/api/v1/generate`);
 
       // log the full request body being sent
-
-      logger.debug('=== REQUEST BEING SENT TO BACKEND ===');
-      logger.debug(JSON.stringify(requestBody));
-      logger.debug('=== END REQUEST ===');
+      if (images.length > 0) {
+        const logRequest = {
+          ...requestBody,
+          images: images.map(() => '[BASE64_IMAGE]'),
+        };
+        logger.debug('=== REQUEST BEING SENT TO BACKEND ===');
+        logger.debug(JSON.stringify(logRequest));
+        logger.debug('=== END REQUEST ===');
+      } else {
+        logger.debug('=== REQUEST BEING SENT TO BACKEND ===');
+        logger.debug(JSON.stringify(requestBody));
+        logger.debug('=== END REQUEST ===');
+      }
 
       const response = await fetch(`${this.config.apiUrl}/api/v1/generate`, {
         method: 'POST',
@@ -251,13 +296,21 @@ export class LocalProvider extends BaseProvider {
 
     for (const message of context.messages) {
       if (message.role === 'user') {
-        parts.push(`${fmt.user.prefix}${message.content}${fmt.user.suffix}`);
+        let content = message.content;
+
+        // check if this is a vision message with images
+        const visionMessage = message as VisionMessage;
+        if (visionMessage.images && visionMessage.images.length > 0) {
+          // add a note about attached images in the prompt
+          content += '\n(Attached Image)';
+        }
+
+        parts.push(`${fmt.user.prefix}${content}${fmt.user.suffix}`);
       } else if (message.role === 'assistant') {
         parts.push(
           `${fmt.assistant.prefix}${message.content}${fmt.assistant.suffix}`
         );
       } else if (message.role === 'system') {
-        // system messages (like function results) use system formatting
         parts.push(
           `${fmt.system.prefix}${message.content}${fmt.system.suffix}`
         );
@@ -297,5 +350,28 @@ export class LocalProvider extends BaseProvider {
     cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
 
     return cleaned;
+  }
+
+  private async fetchImageAsBase64(url: string): Promise<string | null> {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        logger.error(`failed to fetch image: ${response.statusText}`);
+        return null;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const base64 = buffer.toString('base64');
+
+      // determine mime type from response headers or url
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+
+      // return as data uri
+      return `data:${contentType};base64,${base64}`;
+    } catch (error) {
+      logger.error('error fetching image:', error);
+      return null;
+    }
   }
 }

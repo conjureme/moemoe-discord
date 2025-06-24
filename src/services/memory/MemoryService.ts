@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { MemoryMessage } from './types';
+import { MemoryMessage, MessageAttachment } from './types';
 import { ConfigService } from '../config/ConfigService';
 import { logger } from '../../utils/logger';
 
@@ -20,6 +20,7 @@ interface StoredMessage {
   isBot?: boolean;
   botId?: string;
   isSystem?: boolean;
+  attachments?: MessageAttachment[];
 }
 
 interface MemoryContext {
@@ -222,6 +223,7 @@ export class MemoryService {
       isBot: message.isBot,
       botId: message.botId,
       isSystem: message.isSystem,
+      attachments: message.attachments,
     };
 
     memory.messages.push(storedMessage);
@@ -287,6 +289,7 @@ export class MemoryService {
       isBot: msg.isBot,
       botId: msg.botId,
       isSystem: msg.isSystem,
+      attachments: msg.attachments,
     }));
 
     // get recent messages based on token limit
