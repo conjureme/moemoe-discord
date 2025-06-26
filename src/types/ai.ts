@@ -71,6 +71,8 @@ export interface AIConfig {
   samplerPriority?: string[];
 
   stoppingStrings?: string[];
+
+  nsigma?: number;
 }
 
 export interface PromptFormatting {

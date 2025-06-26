@@ -45,9 +45,6 @@ export class LocalProvider extends BaseProvider {
     for (const message of context.messages) {
       if (message.role === 'user') {
         const visionMessage = message as VisionMessage;
-        logger.debug(
-          `checking message for images: ${JSON.stringify(visionMessage.images)}`
-        );
         if (visionMessage.images && visionMessage.images.length > 0) {
           // fetch and convert images to base64
           for (const imageUrl of visionMessage.images) {
@@ -209,30 +206,34 @@ export class LocalProvider extends BaseProvider {
     if (this.config.contextLength !== undefined)
       requestBody.num_ctx = this.config.contextLength;
 
+    if (this.config.nsigma !== undefined)
+      requestBody.nsigma = this.config.nsigma;
+
     requestBody.encoder_repetition_penalty = 1;
     requestBody.repeat_last_n = 0;
     requestBody.min_length = 0;
     requestBody.min_tokens = 0;
     requestBody.skew = 0;
-    requestBody.nsigma = 0;
 
     try {
       logger.debug(`sending request to ${this.config.apiUrl}/api/v1/generate`);
 
       // log the full request body being sent
-      if (images.length > 0) {
-        const logRequest = {
-          ...requestBody,
-          images: images.map(() => '[BASE64_IMAGE]'),
-        };
-        logger.debug('=== REQUEST BEING SENT TO BACKEND ===');
-        logger.debug(JSON.stringify(logRequest));
-        logger.debug('=== END REQUEST ===');
-      } else {
-        logger.debug('=== REQUEST BEING SENT TO BACKEND ===');
-        logger.debug(JSON.stringify(requestBody));
-        logger.debug('=== END REQUEST ===');
-      }
+      // if (images.length > 0) {
+      //   const logRequest = {
+      //     ...requestBody,
+      //     images: images.map(() => '[BASE64_IMAGE]'),
+      //   };
+      //   logger.debug('=== REQUEST BEING SENT TO BACKEND ===');
+      //   logger.debug(JSON.stringify(logRequest));
+      //   logger.debug('=== END REQUEST ===');
+      // } else {
+      //   logger.debug('=== REQUEST BEING SENT TO BACKEND ===');
+      //   logger.debug(JSON.stringify(requestBody));
+      //   logger.debug('=== END REQUEST ===');
+      // }
+
+      logger.debug(`prompt:\n\n${prompt}`);
 
       const response = await fetch(`${this.config.apiUrl}/api/v1/generate`, {
         method: 'POST',

@@ -66,8 +66,7 @@ const memory: Command = {
           );
 
           await interaction.reply({
-            content: 'memory cleared for this channel',
-            flags: ['Ephemeral'],
+            content: 'my memory for this channel has been cleared!',
           });
           break;
         }

@@ -15,6 +15,8 @@ export class ExtendedClient extends Client {
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildPresences,
       ],
       partials: [Partials.Channel],
     });

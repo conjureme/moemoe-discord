@@ -6,6 +6,7 @@ import { UpdateBioFunction } from './implementations/UpdateBio';
 import { UpdateStatusFunction } from './implementations/UpdateStatus';
 import { ExecuteCommandFunction } from './implementations/ExecuteCommand';
 import { SendChannelMessageFunction } from './implementations/SendChannelMessage';
+import { GetUserActivityFunction } from './implementations/GetUserActivity';
 
 export interface FunctionCall {
   name: string;
@@ -25,6 +26,7 @@ export class FunctionRegistry {
     this.register(new UpdateStatusFunction());
     this.register(new ExecuteCommandFunction());
     this.register(new SendChannelMessageFunction());
+    this.register(new GetUserActivityFunction());
   }
 
   register(func: BaseFunction): void {
