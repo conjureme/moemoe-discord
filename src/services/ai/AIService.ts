@@ -1,5 +1,6 @@
 import { BaseProvider } from './providers/BaseProvider';
-import { LocalProvider } from './providers/LocalProvider';
+import { KoboldCPPProvider } from './providers/KoboldCPPProvider';
+
 import { PromptBuilder } from './PromptBuilder';
 import { ConfigService } from '../config/ConfigService';
 import { MemoryMessage } from '../memory/types';
@@ -9,14 +10,14 @@ import {
 } from '../../functions/FunctionRegistry';
 import { FunctionContext } from '../../functions/BaseFunction';
 
-import { AIConfig, AIResponse, ChatContext } from '../../types/ai';
+import { AIConfig, ChatContext } from '../../types/ai';
 import { logger } from '../../utils/logger';
 import { Message } from 'discord.js';
 
 export interface AIServiceResponse {
   content: string;
   functionCalls?: FunctionCall[];
-  rawContent?: string; // keep the original content with function calls
+  rawContent?: string;
 }
 
 export class AIService {
@@ -41,8 +42,8 @@ export class AIService {
 
   private createProvider(config: AIConfig): BaseProvider {
     switch (config.provider) {
-      case 'local':
-        return new LocalProvider(config);
+      case 'koboldcpp':
+        return new KoboldCPPProvider(config);
       default:
         throw new Error(`unsupported ai provider: ${config.provider}`);
     }
@@ -87,7 +88,7 @@ export class AIService {
 
       return {
         content: cleanContent,
-        rawContent: response.content, // keep original with function calls
+        rawContent: response.content,
         functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
       };
     } catch (error) {

@@ -1,6 +1,5 @@
 export interface AIConfig {
-  // required core settings
-  provider: 'local' | 'openai';
+  provider: 'koboldcpp' | 'oobabooga' | 'openai' | 'anthropic';
   apiUrl: string;
   apiKey?: string;
   maxTokens: number;

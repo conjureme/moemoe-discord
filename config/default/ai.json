@@ -1,21 +1,34 @@
 {
-  "provider": "local",
-  "apiUrl": "http://localhost:5000",
-  "maxTokens": 512,
+  "provider": "koboldcpp",
+  "apiUrl": "http://localhost:5001",
+  "maxTokens": 256,
   "temperature": 1.0,
-  "topP": 0.9,
+  "topP": 0.95,
+  "minP": 0.1,
   "topK": 0,
-  "repetitionPenalty": 1.0,
-  "stopSequences": ["<|im_end|>", "<|im_start|>", "\nuser:", "\nassistant:"],
+  "banEosToken": false,
+
+  "repPen": 1.1,
+  "repPenRange": 1024,
+
+  "xtcProbability": 0.1,
+  "xtcThreshold": 0.2,
+
+  "nsigma": 1.5,
+
+  "stopSequences": ["<|im_end|>\n", "</s>", "<|im_end|>"],
+
   "formatting": {
     "system": {
       "prefix": "<|im_start|>system\n",
       "suffix": "<|im_end|>\n"
     },
+
     "user": {
       "prefix": "<|im_start|>user\n",
       "suffix": "<|im_end|>\n"
     },
+
     "assistant": {
       "prefix": "<|im_start|>assistant\n",
       "suffix": "<|im_end|>\n"
