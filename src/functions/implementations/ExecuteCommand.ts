@@ -12,12 +12,7 @@ import {
   ApplicationCommandOptionType,
   CommandInteractionOptionResolver,
   GuildMember,
-  User,
-  Role,
-  GuildChannel,
   PermissionsBitField,
-  SlashCommandBuilder,
-  SlashCommandSubcommandBuilder,
 } from 'discord.js';
 
 export class ExecuteCommandFunction extends BaseFunction {
@@ -38,7 +33,7 @@ export class ExecuteCommandFunction extends BaseFunction {
     const commandDescriptions: string[] = [];
 
     for (const [name, command] of commands) {
-      let description = `- ${name}`;
+      let description = `${name}`;
 
       if (command.data && 'options' in command.data) {
         const subcommands = command.data.options.filter(
@@ -46,7 +41,7 @@ export class ExecuteCommandFunction extends BaseFunction {
         );
 
         if (subcommands.length > 0) {
-          description += `: ${subcommands.map((sub: any) => sub.name).join(', ')}`;
+          description += ` (subcommands: ${subcommands.map((sub: any) => sub.name).join(', ')})`;
         }
       }
 
@@ -59,18 +54,18 @@ export class ExecuteCommandFunction extends BaseFunction {
 
     const availableCommands =
       commandDescriptions.length > 0
-        ? '\n\nAvailable commands:\n' + commandDescriptions.join('\n')
-        : '';
+        ? commandDescriptions.join(', ')
+        : 'none available';
 
     return {
       name: 'execute_command',
-      description: `execute a slash command as the bot${availableCommands}`,
+      description: `execute a slash command as the bot`,
       parameters: [
         {
           name: 'command',
           type: 'string',
           required: true,
-          description: 'the command name to execute (e.g., "ping", "memory")',
+          description: `the command name to execute. Available: ${availableCommands}`,
         },
         {
           name: 'subcommand',
@@ -151,10 +146,6 @@ export class ExecuteCommandFunction extends BaseFunction {
             parsedOptions[name] ? parseInt(parsedOptions[name]) : null,
           getBoolean: (name: string) =>
             parsedOptions[name] === true || parsedOptions[name] === 'true',
-          getUser: (name: string) => null, // not supported in function context
-          getMember: (name: string) => null, // not supported in function context
-          getChannel: (name: string) => null, // not supported in function context
-          getRole: (name: string) => null, // not supported in function context
           getNumber: (name: string) =>
             parsedOptions[name] ? parseFloat(parsedOptions[name]) : null,
           data: parsedOptions,

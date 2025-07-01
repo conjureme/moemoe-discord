@@ -35,7 +35,10 @@ export abstract class BaseProvider {
       `${fmt.system.prefix}${context.systemPrompt}${fmt.system.suffix}`
     );
 
-    for (const message of context.messages) {
+    for (let i = 0; i < context.messages.length; i++) {
+      const message = context.messages[i];
+      const nextMessage = context.messages[i + 1];
+
       if (message.role === 'user') {
         parts.push(`${fmt.user.prefix}${message.content}${fmt.user.suffix}`);
       } else if (message.role === 'assistant') {
@@ -46,6 +49,10 @@ export abstract class BaseProvider {
         parts.push(
           `${fmt.system.prefix}${message.content}${fmt.system.suffix}`
         );
+
+        if (!nextMessage || nextMessage.role !== 'user') {
+          parts.push(`${fmt.user.prefix}${fmt.user.suffix}`);
+        }
       }
     }
 

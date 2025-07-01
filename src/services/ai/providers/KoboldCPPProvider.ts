@@ -88,7 +88,7 @@ export class KoboldCPPProvider extends BaseProvider {
 
     try {
       logger.debug(`sending request to ${this.config.apiUrl}/api/v1/generate`);
-      logger.debug(prompt);
+      logger.debug(JSON.stringify(requestBody));
 
       const response = await fetch(`${this.config.apiUrl}/api/v1/generate`, {
         method: 'POST',
@@ -244,6 +244,7 @@ export class KoboldCPPProvider extends BaseProvider {
     body.use_default_badwordsids = true;
     body.trim_stop = true; // trim stop sequences from output
     body.render_special = false;
+    body.ban_eos_token = false;
 
     if (this.config.ignoreEos !== undefined) {
       body.bypass_eos = this.config.ignoreEos;
