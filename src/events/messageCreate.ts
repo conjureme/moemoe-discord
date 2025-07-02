@@ -92,28 +92,16 @@ const messageCreate: Event = {
         if (filteredContent && filteredContent.trim().length > 0) {
           const sentMessage = await message.reply(filteredContent);
 
-          // store the RAW content (with function calls) in memory
+          let messageContent = filteredRawContent;
+
           await memoryService.addMessage({
             id: sentMessage.id,
             channelId: sentMessage.channelId,
             guildId: sentMessage.guildId,
             author: sentMessage.author.username,
             authorId: sentMessage.author.id,
-            content: filteredRawContent, // use filtered raw content
+            content: messageContent,
             timestamp: sentMessage.createdAt,
-            isBot: true,
-            botId: message.client.user!.id,
-          });
-        } else {
-          // if no visible content, still store the function calls in memory
-          await memoryService.addMessage({
-            id: 'function-call-' + Date.now(),
-            channelId: message.channelId,
-            guildId: message.guildId,
-            author: message.client.user!.username,
-            authorId: message.client.user!.id,
-            content: filteredRawContent, // store the filtered function calls
-            timestamp: new Date(),
             isBot: true,
             botId: message.client.user!.id,
           });

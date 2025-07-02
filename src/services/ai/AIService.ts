@@ -73,12 +73,13 @@ export class AIService {
         );
       }
 
-      const functionCalls = this.functionRegistry.parseFunctionCalls(
-        response.content
-      );
-      const cleanContent = this.functionRegistry.removeFunctionCalls(
-        response.content
-      );
+      // clean the response - remove bot name prefix if present
+      let cleanedContent = this.cleanBotResponse(response.content);
+
+      const functionCalls =
+        this.functionRegistry.parseFunctionCalls(cleanedContent);
+      const contentWithoutFunctions =
+        this.functionRegistry.removeFunctionCalls(cleanedContent);
 
       if (functionCalls.length > 0) {
         logger.info(
@@ -87,14 +88,34 @@ export class AIService {
       }
 
       return {
-        content: cleanContent,
-        rawContent: response.content,
+        content: contentWithoutFunctions,
+        rawContent: cleanedContent,
         functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
       };
     } catch (error) {
       logger.error('failed to generate ai response:', error);
       throw error;
     }
+  }
+
+  private cleanBotResponse(response: string): string {
+    const botConfig = this.configService.getBotConfig();
+    const botName = botConfig.name;
+
+    // remove bot name prefix patterns
+    const patterns = [
+      new RegExp(`^${botName}:\\s*`, 'i'), // "moemoe: "
+      new RegExp(`^\\*${botName}\\*:\\s*`, 'i'), // "*moemoe*: "
+      new RegExp(`^\\*\\*${botName}\\*\\*:\\s*`, 'i'), // "**moemoe**: "
+      new RegExp(`^\\[${botName}\\]:\\s*`, 'i'), // "[moemoe]: "
+    ];
+
+    let cleaned = response;
+    for (const pattern of patterns) {
+      cleaned = cleaned.replace(pattern, '');
+    }
+
+    return cleaned.trim();
   }
 
   async executeFunctionCalls(

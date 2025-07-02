@@ -1,4 +1,5 @@
 {
-  "maxMessagesPerChannel": 100,
-  "maxTokensInContext": 4000
+  "maxMessagesPerChannel": 200,
+  "maxTokensInContext": 12288,
+  "userMessageFormat": "default"
 }

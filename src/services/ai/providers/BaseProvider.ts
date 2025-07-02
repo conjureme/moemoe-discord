@@ -19,44 +19,36 @@ export abstract class BaseProvider {
       'Content-Type': 'application/json',
     };
 
-    if (this.config.apiKey) {
-      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
-    }
-
     return headers;
   }
 
   // build formatted prompt from context
   protected buildFormattedPrompt(context: ChatContext): string {
     const parts: string[] = [];
-    const fmt = this.config.formatting;
+    const instruct = this.config.instruct;
 
     parts.push(
-      `${fmt.system.prefix}${context.systemPrompt}${fmt.system.suffix}`
+      `${instruct.system_sequence}${context.systemPrompt}${instruct.system_suffix}`
     );
 
-    for (let i = 0; i < context.messages.length; i++) {
-      const message = context.messages[i];
-      const nextMessage = context.messages[i + 1];
-
+    for (const message of context.messages) {
       if (message.role === 'user') {
-        parts.push(`${fmt.user.prefix}${message.content}${fmt.user.suffix}`);
+        parts.push(
+          `${instruct.input_sequence}${message.content}${instruct.input_suffix}`
+        );
       } else if (message.role === 'assistant') {
         parts.push(
-          `${fmt.assistant.prefix}${message.content}${fmt.assistant.suffix}`
+          `${instruct.output_sequence}${message.content}${instruct.output_suffix}`
         );
       } else if (message.role === 'system') {
         parts.push(
-          `${fmt.system.prefix}${message.content}${fmt.system.suffix}`
+          `${instruct.system_sequence}${message.content}${instruct.system_suffix}`
         );
-
-        if (!nextMessage || nextMessage.role !== 'user') {
-          parts.push(`${fmt.user.prefix}${fmt.user.suffix}`);
-        }
       }
     }
 
-    parts.push(fmt.assistant.prefix);
+    // add assistant prefix for generation
+    parts.push(instruct.output_sequence);
 
     return parts.join('');
   }
@@ -65,15 +57,15 @@ export abstract class BaseProvider {
     if (!response) return '';
 
     let cleaned = response;
-    const fmt = this.config.formatting;
+    const instruct = this.config.instruct;
 
     const tokensToRemove = [
-      fmt.system.prefix,
-      fmt.system.suffix,
-      fmt.user.prefix,
-      fmt.user.suffix,
-      fmt.assistant.prefix,
-      fmt.assistant.suffix,
+      instruct.system_sequence,
+      instruct.system_suffix,
+      instruct.input_sequence,
+      instruct.input_suffix,
+      instruct.output_sequence,
+      instruct.output_suffix,
     ];
 
     const uniqueTokens = [...new Set(tokensToRemove)].filter(
@@ -83,6 +75,13 @@ export abstract class BaseProvider {
     for (const token of uniqueTokens) {
       const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       cleaned = cleaned.replace(new RegExp(escapedToken, 'g'), '');
+    }
+
+    if (instruct.stop_sequence) {
+      const stopIndex = cleaned.indexOf(instruct.stop_sequence);
+      if (stopIndex !== -1) {
+        cleaned = cleaned.substring(0, stopIndex);
+      }
     }
 
     cleaned = cleaned.trim();

@@ -1,27 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { MemoryMessage, MessageAttachment } from './types';
+import { MemoryMessage, ChannelMemory, StoredMessage } from './types';
 import { ConfigService } from '../config/ConfigService';
 import { logger } from '../../utils/logger';
-
-interface ChannelMemory {
-  channelId: string;
-  guildId: string | null;
-  messages: StoredMessage[];
-}
-
-interface StoredMessage {
-  messageId: string;
-  authorId: string;
-  authorName: string;
-  content: string;
-  timestamp: string;
-  isBot?: boolean;
-  botId?: string;
-  isSystem?: boolean;
-  attachments?: MessageAttachment[];
-}
 
 interface MemoryContext {
   messages: MemoryMessage[];
@@ -179,6 +161,16 @@ export class MemoryService {
       const filePath = this.getMemoryFilePath(channelId, guildId);
       if (fs.existsSync(filePath)) {
         const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+        // ensure proper structure
+        if (!data.chat_metadata) {
+          data.chat_metadata = {
+            created: new Date().toISOString(),
+            modified: new Date().toISOString(),
+            character: this.configService.getBotConfig().name,
+          };
+        }
+
         const cacheKey = this.getCacheKey(channelId, guildId);
         this.memoryCache.set(cacheKey, data);
       }
@@ -210,6 +202,11 @@ export class MemoryService {
         channelId: message.channelId,
         guildId: message.guildId,
         messages: [],
+        chat_metadata: {
+          created: new Date().toISOString(),
+          modified: new Date().toISOString(),
+          character: this.configService.getBotConfig().name,
+        },
       };
       this.memoryCache.set(cacheKey, memory);
     }
@@ -224,9 +221,17 @@ export class MemoryService {
       botId: message.botId,
       isSystem: message.isSystem,
       attachments: message.attachments,
+      is_user: !message.isBot && !message.isSystem,
+      is_name: true,
+      swipe_id: 0,
+      swipes: [message.content],
     };
 
     memory.messages.push(storedMessage);
+
+    if (memory.chat_metadata) {
+      memory.chat_metadata.modified = new Date().toISOString();
+    }
 
     // trim old messages if exceeding limit
     const config = this.configService.getMemoryConfig();

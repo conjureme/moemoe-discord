@@ -1,16 +1,45 @@
 export interface BotConfig {
   name: string;
-  systemPrompt: {
-    template: string;
-    persona: string;
-    rules: string;
-    examples: string;
-    context: string;
+  description: string;
+  personality: string;
+  scenario: string;
+  first_mes: string;
+  mes_example: string;
+  creatorcomment: string;
+  avatar: string;
+  chat: string;
+  talkativeness: string;
+  fav: boolean;
+  create_date: string;
+  spec: string;
+  spec_version: string;
+  data: {
+    name: string;
+    description: string;
+    personality: string;
+    scenario: string;
+    first_mes: string;
+    mes_example: string;
+    creator_notes: string;
+    system_prompt: string;
+    post_history_instructions: string;
+    tags: string[];
+    creator: string;
+    character_version: string;
+    alternate_greetings: string[];
+    extensions: {
+      talkativeness: string;
+      fav: boolean;
+      world: string;
+      depth_prompt: {
+        prompt: string;
+        depth: number;
+        role: string;
+      };
+    };
+    group_only_greetings: string[];
   };
-  conversationPriming?: {
-    enabled: boolean;
-    exchanges: ConversationExchange[];
-  };
+  tags: string[];
 }
 
 export interface ConversationExchange {
@@ -23,4 +52,11 @@ export interface ConversationExchange {
 export interface MemoryConfig {
   maxMessagesPerChannel: number;
   maxTokensInContext: number;
+  userMessageFormat?:
+    | 'default'
+    | 'nickname'
+    | 'username_only'
+    | 'id_only'
+    | 'custom';
+  customUserFormat?: string; // e.g., "{{nickname}}({{id}}): {{message}}"
 }

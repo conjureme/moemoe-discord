@@ -68,11 +68,6 @@ export class KoboldCPPProvider extends BaseProvider {
       return false;
     }
 
-    if (!this.config.maxTokens || this.config.maxTokens <= 0) {
-      logger.error('invalid maxTokens configuration');
-      return false;
-    }
-
     return true;
   }
 
@@ -88,7 +83,8 @@ export class KoboldCPPProvider extends BaseProvider {
 
     try {
       logger.debug(`sending request to ${this.config.apiUrl}/api/v1/generate`);
-      logger.debug(JSON.stringify(requestBody));
+      // logger.debug(JSON.stringify(requestBody));
+      logger.debug(prompt);
 
       const response = await fetch(`${this.config.apiUrl}/api/v1/generate`, {
         method: 'POST',
@@ -157,11 +153,13 @@ export class KoboldCPPProvider extends BaseProvider {
   }
 
   private buildRequestBody(prompt: string, images: string[]): any {
+    const preset = this.config.preset;
+
     const body: any = {
       prompt,
-      max_length: this.config.maxTokens,
-      temperature: this.config.temperature,
-      stop_sequence: this.config.stopSequences,
+      max_length: preset.genamt,
+      temperature: preset.temp,
+      stop_sequence: [this.config.instruct.stop_sequence],
     };
 
     // add images if present
@@ -169,86 +167,95 @@ export class KoboldCPPProvider extends BaseProvider {
       body.images = images;
     }
 
-    // map config params to kobold request body
-    if (this.config.contextLength !== undefined) {
-      body.max_context_length = this.config.contextLength;
+    // map preset params to kobold request body
+    if (preset.max_length !== undefined) {
+      body.max_context_length = preset.max_length;
     }
-    if (this.config.repetitionPenalty !== undefined) {
-      body.rep_pen = this.config.repetitionPenalty;
+    if (preset.rep_pen !== undefined) {
+      body.rep_pen = preset.rep_pen;
     }
-    if (this.config.repPenRange !== undefined) {
-      body.rep_pen_range = this.config.repPenRange;
+    if (preset.rep_pen_range !== undefined) {
+      body.rep_pen_range = preset.rep_pen_range;
     }
-    if (this.config.samplerOrder !== undefined) {
-      body.sampler_order = this.config.samplerOrder;
+    if (preset.sampler_order !== undefined) {
+      body.sampler_order = preset.sampler_order;
     }
 
-    if (this.config.topP !== undefined) body.top_p = this.config.topP;
-    if (this.config.topK !== undefined) body.top_k = this.config.topK;
-    if (this.config.topA !== undefined) body.top_a = this.config.topA;
-    if (this.config.minP !== undefined) body.min_p = this.config.minP;
-    if (this.config.typicalP !== undefined) body.typical = this.config.typicalP;
-    if (this.config.tfs !== undefined) body.tfs = this.config.tfs;
+    if (preset.top_p !== undefined) body.top_p = preset.top_p;
+    if (preset.top_k !== undefined) body.top_k = preset.top_k;
+    if (preset.top_a !== undefined) body.top_a = preset.top_a;
+    if (preset.min_p !== undefined) body.min_p = preset.min_p;
+    if (preset.typical_p !== undefined) body.typical = preset.typical_p;
+    if (preset.tfs !== undefined) body.tfs = preset.tfs;
 
     // dynamic temperature
+    if (preset.dynatemp) {
+      body.dynatemp_range = [preset.min_temp, preset.max_temp];
+      body.dynatemp_exponent = preset.dynatemp_exponent;
+    }
 
-    if (this.config.smoothingFactor !== undefined) {
-      body.smoothing_factor = this.config.smoothingFactor;
+    if (preset.smoothing_factor !== undefined) {
+      body.smoothing_factor = preset.smoothing_factor;
     }
 
     // mirostat
-    if (this.config.mirostatMode !== undefined) {
-      body.mirostat = this.config.mirostatMode;
+    if (preset.mirostat_mode !== undefined) {
+      body.mirostat = preset.mirostat_mode;
     }
-    if (this.config.mirostatTau !== undefined) {
-      body.mirostat_tau = this.config.mirostatTau;
+    if (preset.mirostat_tau !== undefined) {
+      body.mirostat_tau = preset.mirostat_tau;
     }
-    if (this.config.mirostatEta !== undefined) {
-      body.mirostat_eta = this.config.mirostatEta;
+    if (preset.mirostat_eta !== undefined) {
+      body.mirostat_eta = preset.mirostat_eta;
     }
 
     // dry sampling
-    if (this.config.dryMultiplier !== undefined) {
-      body.dry_multiplier = this.config.dryMultiplier;
+    if (preset.dry_multiplier !== undefined) {
+      body.dry_multiplier = preset.dry_multiplier;
     }
-    if (this.config.dryBase !== undefined) {
-      body.dry_base = this.config.dryBase;
+    if (preset.dry_base !== undefined) {
+      body.dry_base = preset.dry_base;
     }
-    if (this.config.dryAllowedLength !== undefined) {
-      body.dry_allowed_length = this.config.dryAllowedLength;
+    if (preset.dry_allowed_length !== undefined) {
+      body.dry_allowed_length = preset.dry_allowed_length;
     }
-    if (this.config.drySequenceBreakers !== undefined) {
-      body.dry_sequence_breakers = this.config.drySequenceBreakers;
+    if (preset.dry_sequence_breakers !== undefined) {
+      body.dry_sequence_breakers = preset.dry_sequence_breakers;
     }
 
     // xtc sampling
-    if (this.config.xtcThreshold !== undefined) {
-      body.xtc_threshold = this.config.xtcThreshold;
+    if (preset.xtc_threshold !== undefined) {
+      body.xtc_threshold = preset.xtc_threshold;
     }
-    if (this.config.xtcProbability !== undefined) {
-      body.xtc_probability = this.config.xtcProbability;
+    if (preset.xtc_probability !== undefined) {
+      body.xtc_probability = preset.xtc_probability;
     }
 
     // other parameters
-    if (this.config.nsigma !== undefined) body.nsigma = this.config.nsigma;
+    if (preset.nsigma !== undefined) body.nsigma = preset.nsigma;
 
-    if (this.config.grammarString !== undefined) {
-      body.grammar = this.config.grammarString;
+    if (preset.grammar_string !== undefined) {
+      body.grammar = preset.grammar_string;
     }
 
-    if (this.config.bannedStrings !== undefined) {
-      body.banned_tokens = this.config.bannedStrings;
+    if (preset.banned_tokens !== undefined) {
+      body.banned_tokens = preset.banned_tokens;
     }
 
     // koboldcpp specific flags
     body.use_default_badwordsids = true;
-    body.trim_stop = true; // trim stop sequences from output
+    body.trim_stop = this.config.context?.trim_sentences || true;
     body.render_special = false;
-    body.ban_eos_token = false;
 
-    if (this.config.ignoreEos !== undefined) {
-      body.bypass_eos = this.config.ignoreEos;
+    if (preset.ignore_eos_token !== undefined) {
+      body.bypass_eos = preset.ignore_eos_token;
     }
+
+    if (preset.ban_eos_token !== undefined) {
+      body.ban_eos_token = preset.ban_eos_token;
+    }
+
+    body.temperature_last = preset.temperature_last;
 
     return body;
   }

@@ -3,6 +3,8 @@ import { MemoryMessage } from '../memory/types';
 import { AIMessage, VisionMessage } from '../../types/ai';
 import { FunctionRegistry } from '../../functions/FunctionRegistry';
 
+import { MessageFormatter } from '../../utils/MessageFormatter';
+
 import { logger } from '../../utils/logger';
 
 export class PromptBuilder {
@@ -19,104 +21,216 @@ export class PromptBuilder {
 
   buildSystemPrompt(): string {
     const botConfig = this.configService.getBotConfig();
-    const template = botConfig.systemPrompt.template;
+    const aiConfig = this.configService.getAIConfig();
 
-    let prompt = template;
-    prompt = prompt.replace(/{{bot_name}}/g, botConfig.name);
-    prompt = prompt.replace(
-      /{{persona_description}}/g,
-      botConfig.systemPrompt.persona
-    );
-    prompt = prompt.replace(
-      /{{messaging_rules}}/g,
-      botConfig.systemPrompt.rules
-    );
-    prompt = prompt.replace(
-      /{{dialogue_examples}}/g,
-      botConfig.systemPrompt.examples
-    );
-    prompt = prompt.replace(
-      /{{context_information}}/g,
-      botConfig.systemPrompt.context
-    );
+    // build from story string template
+    let storyString = aiConfig.context.story_string;
 
-    const functionPrompt = this.functionRegistry.generatePromptSection();
-    if (functionPrompt) {
-      prompt += functionPrompt;
+    const replacements: Record<string, string> = {
+      system: botConfig.data.system_prompt || aiConfig.sysprompt.content,
+      description: botConfig.data.description,
+      personality: botConfig.data.personality,
+      scenario: botConfig.data.scenario,
+      mesExamples: this.formatExamplesForStoryString(
+        botConfig.data.mes_example
+      ),
+      wiBefore: '',
+      wiAfter: '',
+      persona: '',
+    };
+
+    // process conditionals
+    for (const [key, value] of Object.entries(replacements)) {
+      const conditionalRegex = new RegExp(`{{#if ${key}}}(.*?){{/if}}`, 'gs');
+      storyString = storyString.replace(conditionalRegex, (match, content) => {
+        return value ? content.replace(`{{${key}}}`, value) : '';
+      });
     }
 
-    return prompt;
+    storyString = storyString.replace(/{{char}}/g, botConfig.name);
+    storyString = storyString.replace(/{{user}}/g, 'User');
+    storyString = storyString.replace(/\n*{{trim}}\n*/g, '');
+
+    // const functionPrompt = this.functionRegistry.generatePromptSection();
+    // if (functionPrompt) {
+    //   storyString += functionPrompt;
+    // }
+
+    logger.debug(storyString);
+    return storyString;
   }
 
   buildMessages(memoryMessages: MemoryMessage[]): AIMessage[] {
     const botConfig = this.configService.getBotConfig();
+    const aiConfig = this.configService.getAIConfig();
     const messages: AIMessage[] = [];
 
-    // prepend example conversation turns if toggled
-    if (
-      botConfig.conversationPriming?.enabled &&
-      botConfig.conversationPriming.exchanges
-    ) {
-      for (const exchange of botConfig.conversationPriming.exchanges) {
-        messages.push({
-          role: 'user',
-          content: `[${exchange.userName}|${exchange.userId || '123456789'}]: ${exchange.userMessage}`,
-          name: exchange.userName,
-        });
-
-        messages.push({
-          role: 'assistant',
-          content: exchange.assistantResponse,
-          name: botConfig.name,
-        });
-      }
+    // handle first message if no history
+    if (memoryMessages.length === 0 && botConfig.data.first_mes) {
+      messages.push({
+        role: 'assistant',
+        content: botConfig.data.first_mes,
+        name: botConfig.name,
+      });
+      return messages;
     }
 
-    // add actual conversation history
+    if (botConfig.data.mes_example && !aiConfig.instruct.skip_examples) {
+      const examples = this.parseExampleMessages(botConfig.data.mes_example);
+      messages.push(...examples);
+    }
+
+    // process conversation history
     for (const msg of memoryMessages) {
-      const isBot = msg.authorId === msg.botId || msg.isBot;
+      const isBot = msg.isBot || msg.authorId === msg.botId;
+      const isUser =
+        msg.is_user !== undefined ? msg.is_user : !isBot && !msg.isSystem;
       const isSystem = msg.isSystem;
 
       if (isSystem) {
+        // system messages (function results, etc)
         messages.push({
           role: 'system',
           content: msg.content,
           name: 'System',
         });
       } else if (isBot) {
+        // assistant messages - DO NOT prepend name, it's already in the content if needed
         messages.push({
           role: 'assistant',
           content: msg.content,
-          name: msg.author,
+          name: botConfig.name,
         });
-      } else {
-        // for user messages, check if there are image attachments
+      } else if (isUser) {
+        let content = msg.content;
+
+        if (msg.extra?.originalMessage) {
+          const memoryConfig = this.configService.getMemoryConfig();
+          content = MessageFormatter.formatUserMessage(
+            msg.extra.originalMessage,
+            msg.content,
+            memoryConfig
+          );
+        } else {
+          content = `[${msg.author}|${msg.authorId}]: ${content}`;
+        }
+
         const userMessage: AIMessage | VisionMessage = {
           role: 'user',
-          content: `[${msg.author}|${msg.authorId}]: ${msg.content}`,
+          content: content,
           name: msg.author,
         };
 
-        // add images if present
+        // handle image attachments
         if (msg.attachments && msg.attachments.length > 0) {
-          logger.debug(`message has ${msg.attachments.length} attachments`);
           const imageAttachments = msg.attachments.filter((att) =>
             att.type.startsWith('image/')
-          );
-          logger.debug(
-            `filtered to ${imageAttachments.length} image attachments`
           );
           if (imageAttachments.length > 0) {
             (userMessage as VisionMessage).images = imageAttachments.map(
               (att) => att.url
             );
-            logger.debug(
-              `added images to message: ${JSON.stringify((userMessage as VisionMessage).images)}`
-            );
           }
         }
 
         messages.push(userMessage);
+      }
+    }
+
+    if (botConfig.data.post_history_instructions) {
+      messages.push({
+        role: 'system',
+        content: botConfig.data.post_history_instructions,
+        name: 'System',
+      });
+    }
+
+    return messages;
+  }
+
+  private formatExamplesForStoryString(examples: string | undefined): string {
+    if (!examples) return '';
+
+    const botConfig = this.configService.getBotConfig();
+    const aiConfig = this.configService.getAIConfig();
+    const separator = aiConfig.context.example_separator || '<START>';
+
+    const conversations = examples.split(separator).filter((s) => s.trim());
+    const formatted: string[] = [];
+
+    for (const conversation of conversations) {
+      const lines = conversation
+        .trim()
+        .split('\n')
+        .filter((line) => line.trim());
+      const processedLines: string[] = [];
+
+      for (const line of lines) {
+        let processedLine = line;
+
+        processedLine = processedLine.replace(/{{char}}/g, botConfig.name);
+        processedLine = processedLine.replace(/{{user}}/g, 'User');
+
+        if (processedLine.includes('{{user}}:')) {
+          processedLine = processedLine.replace('{{user}}:', 'User:');
+        } else if (processedLine.includes('{{char}}:')) {
+          processedLine = processedLine.replace(
+            '{{char}}:',
+            `${botConfig.name}:`
+          );
+        }
+
+        processedLines.push(processedLine);
+      }
+
+      formatted.push(processedLines.join('\n'));
+    }
+
+    // join conversations with newlines instead of separator tags
+    return formatted.join('\n');
+  }
+
+  private parseExampleMessages(examples: string): AIMessage[] {
+    const messages: AIMessage[] = [];
+    const botConfig = this.configService.getBotConfig();
+    const aiConfig = this.configService.getAIConfig();
+
+    const separator = aiConfig.context.example_separator || '<START>';
+    const conversations = examples.split(separator).filter((s) => s.trim());
+
+    for (const conversation of conversations) {
+      const lines = conversation
+        .trim()
+        .split('\n')
+        .filter((line) => line.trim());
+
+      for (const line of lines) {
+        if (line.includes('{{user}}:')) {
+          let content = line.replace('{{user}}:', '').trim();
+
+          if (aiConfig.instruct.names_behavior === 'always') {
+            content = `User: ${content}`;
+          }
+
+          messages.push({
+            role: 'user',
+            content: content,
+            name: 'User',
+          });
+        } else if (line.includes('{{char}}:')) {
+          let content = line.replace('{{char}}:', '').trim();
+          content = content.replace(/{{char}}/g, botConfig.name);
+
+          if (aiConfig.instruct.names_behavior === 'always') {
+            content = `${botConfig.name}: ${content}`;
+          }
+
+          messages.push({
+            role: 'assistant',
+            content: content,
+            name: botConfig.name,
+          });
+        }
       }
     }
 
