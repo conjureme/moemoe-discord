@@ -100,56 +100,39 @@ const messageCreate: Event = {
           message
         );
 
-        // send the clean content (without function calls) to discord
+        let sentMessage: Message | null = null;
+
+        // only send discord message if there's actual content to display
         if (filteredContent && filteredContent.trim().length > 0) {
-          const sentMessage = await message.reply(filteredContent);
+          sentMessage = await message.reply(filteredContent);
+        }
 
-          let messageContent = filteredRawContent;
+        // always store the bot's message in memory, regardless of whether we sent a discord message
+        const messageToStore = {
+          id: sentMessage?.id || `synthetic-${Date.now()}`,
+          channelId: message.channelId,
+          guildId: message.guildId,
+          author: message.client.user!.username,
+          authorId: message.client.user!.id,
+          content: filteredRawContent,
+          timestamp: sentMessage?.createdAt || new Date(),
+          isBot: true,
+          botId: message.client.user!.id,
+        };
 
-          await memoryService.addMessage({
-            id: sentMessage.id,
-            channelId: sentMessage.channelId,
-            guildId: sentMessage.guildId,
-            author: sentMessage.author.username,
-            authorId: sentMessage.author.id,
-            content: messageContent,
-            timestamp: sentMessage.createdAt,
-            isBot: true,
-            botId: message.client.user!.id,
+        await memoryService.addMessage(messageToStore);
+
+        // store function results as system messages
+        for (const result of functionResults) {
+          await memoryService.addSystemMessage({
+            channelId: message.channelId,
+            guildId: message.guildId,
+            content: result,
+            timestamp: new Date(),
           });
         }
 
-        // store function results as a single bot message
-        if (functionResults.length > 0) {
-          const combinedResults = functionResults.join('\n');
-
-          // add the function result as a bot message
-          await memoryService.addMessage({
-            id: 'function-result-' + Date.now(),
-            channelId: message.channelId,
-            guildId: message.guildId,
-            author: message.client.user!.username,
-            authorId: message.client.user!.id,
-            content: combinedResults,
-            timestamp: new Date(),
-            isBot: true,
-            botId: message.client.user!.id,
-          });
-
-          // add an empty user message to maintain proper instruct pattern
-          await memoryService.addMessage({
-            id: 'empty-' + Date.now(),
-            channelId: message.channelId,
-            guildId: message.guildId,
-            author: 'System',
-            authorId: 'system',
-            content: '',
-            timestamp: new Date(),
-            isBot: false,
-            is_user: true,
-          });
-        }
-
+        // get updated context for follow-up
         const updatedContext = await memoryService.getChannelContext(
           message.channelId,
           message.guildId

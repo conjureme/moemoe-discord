@@ -27,9 +27,7 @@ export abstract class BaseProvider {
     const parts: string[] = [];
     const instruct = this.config.instruct;
 
-    parts.push(
-      `${instruct.system_sequence}${context.systemPrompt}${instruct.system_suffix}`
-    );
+    parts.push(context.systemPrompt);
 
     for (const message of context.messages) {
       if (message.role === 'user') {
