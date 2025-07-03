@@ -225,6 +225,7 @@ export class MemoryService {
       is_name: true,
       swipe_id: 0,
       swipes: [message.content],
+      extra: message.extra,
     };
 
     memory.messages.push(storedMessage);
@@ -295,6 +296,7 @@ export class MemoryService {
       botId: msg.botId,
       isSystem: msg.isSystem,
       attachments: msg.attachments,
+      extra: msg.extra,
     }));
 
     // get recent messages based on token limit

@@ -51,10 +51,21 @@ export class PromptBuilder {
     storyString = storyString.replace(/{{user}}/g, 'User');
     storyString = storyString.replace(/\n*{{trim}}\n*/g, '');
 
-    // const functionPrompt = this.functionRegistry.generatePromptSection();
-    // if (functionPrompt) {
-    //   storyString += functionPrompt;
-    // }
+    const functionPrompt = this.functionRegistry.generatePromptSection();
+    if (functionPrompt) {
+      const endMarker = '### **End of Roleplay Context**';
+      const endIndex = storyString.indexOf(endMarker);
+
+      if (endIndex !== -1) {
+        storyString =
+          storyString.slice(0, endIndex) +
+          functionPrompt +
+          '\n' +
+          storyString.slice(endIndex);
+      } else {
+        storyString += functionPrompt;
+      }
+    }
 
     logger.debug(storyString);
     return storyString;
@@ -102,22 +113,9 @@ export class PromptBuilder {
           name: botConfig.name,
         });
       } else if (isUser) {
-        let content = msg.content;
-
-        if (msg.extra?.originalMessage) {
-          const memoryConfig = this.configService.getMemoryConfig();
-          content = MessageFormatter.formatUserMessage(
-            msg.extra.originalMessage,
-            msg.content,
-            memoryConfig
-          );
-        } else {
-          content = `[${msg.author}|${msg.authorId}]: ${content}`;
-        }
-
         const userMessage: AIMessage | VisionMessage = {
           role: 'user',
-          content: content,
+          content: msg.content,
           name: msg.author,
         };
 

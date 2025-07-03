@@ -1,8 +1,11 @@
 import { Events, Message, ChannelType } from 'discord.js';
 import { Event } from '../types/discord';
-import { logger } from '../utils/logger';
+
 import { serviceManager } from '../services/ServiceManager';
 import { removeUnicodeEmojis } from '../utils/emojiFilter';
+import { MessageFormatter } from '../utils/MessageFormatter';
+
+import { logger } from '../utils/logger';
 
 const messageCreate: Event = {
   name: Events.MessageCreate,
@@ -23,6 +26,7 @@ const messageCreate: Event = {
 
       const memoryService = serviceManager.getMemoryService();
       const aiService = serviceManager.getAIService();
+      const configService = serviceManager.getConfigService();
 
       logger.debug(`processing message in channel ${message.channelId}`);
 
@@ -32,15 +36,23 @@ const messageCreate: Event = {
           /\.(jpg|jpeg|png|gif|webp)$/i.test(attachment.name || '')
       );
 
-      logger.debug(`found ${imageAttachments.size} image attachments`);
-      logger.debug(
-        `image attachments: ${JSON.stringify(
-          Array.from(imageAttachments.values()).map((att) => ({
-            url: att.url,
-            type: att.contentType,
-            name: att.name,
-          }))
-        )}`
+      // logger.debug(`found ${imageAttachments.size} image attachments`);
+      // logger.debug(
+      //   `image attachments: ${JSON.stringify(
+      //     Array.from(imageAttachments.values()).map((att) => ({
+      //       url: att.url,
+      //       type: att.contentType,
+      //       name: att.name,
+      //     }))
+      //   )}`
+      // );
+
+      // format user message content before storing
+      const memoryConfig = configService.getMemoryConfig();
+      const formattedContent = MessageFormatter.formatUserMessage(
+        message,
+        message.content,
+        memoryConfig
       );
 
       await memoryService.addMessage({
@@ -49,7 +61,7 @@ const messageCreate: Event = {
         guildId: message.guildId,
         author: message.author.username,
         authorId: message.author.id,
-        content: message.content,
+        content: formattedContent,
         timestamp: message.createdAt,
         isBot: false,
         attachments: imageAttachments.map((att) => ({
@@ -107,13 +119,34 @@ const messageCreate: Event = {
           });
         }
 
-        // store function results as system messages
-        for (const result of functionResults) {
-          await memoryService.addSystemMessage({
+        // store function results as a single bot message
+        if (functionResults.length > 0) {
+          const combinedResults = functionResults.join('\n');
+
+          // add the function result as a bot message
+          await memoryService.addMessage({
+            id: 'function-result-' + Date.now(),
             channelId: message.channelId,
             guildId: message.guildId,
-            content: result,
+            author: message.client.user!.username,
+            authorId: message.client.user!.id,
+            content: combinedResults,
             timestamp: new Date(),
+            isBot: true,
+            botId: message.client.user!.id,
+          });
+
+          // add an empty user message to maintain proper instruct pattern
+          await memoryService.addMessage({
+            id: 'empty-' + Date.now(),
+            channelId: message.channelId,
+            guildId: message.guildId,
+            author: 'System',
+            authorId: 'system',
+            content: '',
+            timestamp: new Date(),
+            isBot: false,
+            is_user: true,
           });
         }
 
