@@ -4,6 +4,7 @@ import { Event } from '../types/discord';
 import { serviceManager } from '../services/ServiceManager';
 import { removeUnicodeEmojis } from '../utils/emojiFilter';
 import { MessageFormatter } from '../utils/MessageFormatter';
+import { initializeWordFilter, getWordFilter } from '../utils/wordFilter';
 
 import { logger } from '../utils/logger';
 
@@ -27,6 +28,14 @@ const messageCreate: Event = {
       const memoryService = serviceManager.getMemoryService();
       const aiService = serviceManager.getAIService();
       const configService = serviceManager.getConfigService();
+
+      let wordFilter = getWordFilter();
+      if (!wordFilter) {
+        const filterConfig = configService.getFilterConfig();
+        if (filterConfig.enabled) {
+          wordFilter = initializeWordFilter(filterConfig);
+        }
+      }
 
       logger.debug(`processing message in channel ${message.channelId}`);
 
@@ -84,6 +93,20 @@ const messageCreate: Event = {
         message
       );
 
+      let wasFiltered = false;
+      let originalContent = response.content;
+      let matchedWords: string[] = [];
+
+      if (wordFilter && response.content) {
+        const filterResult = wordFilter.checkMessage(response.content);
+        if (filterResult.isFiltered) {
+          wasFiltered = true;
+          originalContent = response.content;
+          matchedWords = filterResult.matchedWords || [];
+          response.content = filterResult.filteredContent || '[filtered]';
+        }
+      }
+
       // filter unicode emojis from the response
       const filteredContent = removeUnicodeEmojis(response.content);
       const filteredRawContent = response.rawContent
@@ -107,20 +130,28 @@ const messageCreate: Event = {
           sentMessage = await message.reply(filteredContent);
         }
 
-        // always store the bot's message in memory, regardless of whether we sent a discord message
         const messageToStore = {
           id: sentMessage?.id || `synthetic-${Date.now()}`,
           channelId: message.channelId,
           guildId: message.guildId,
           author: message.client.user!.username,
           authorId: message.client.user!.id,
-          content: filteredRawContent,
+          content: wasFiltered ? originalContent : filteredRawContent,
           timestamp: sentMessage?.createdAt || new Date(),
           isBot: true,
           botId: message.client.user!.id,
         };
 
         await memoryService.addMessage(messageToStore);
+
+        if (wasFiltered && sentMessage) {
+          await memoryService.addSystemMessage({
+            channelId: message.channelId,
+            guildId: message.guildId,
+            content: `[FILTER: Response was filtered. Matched words: ${matchedWords.join(', ')}.]`,
+            timestamp: new Date(),
+          });
+        }
 
         // store function results as system messages
         for (const result of functionResults) {
@@ -143,6 +174,21 @@ const messageCreate: Event = {
           message
         );
 
+        // check if follow-up should be filtered too
+        let followUpFiltered = false;
+        let followUpOriginal = followUpResponse.content;
+        if (wordFilter && followUpResponse.content) {
+          const followUpFilterResult = wordFilter.checkMessage(
+            followUpResponse.content
+          );
+          if (followUpFilterResult.isFiltered) {
+            followUpFiltered = true;
+            followUpOriginal = followUpResponse.content;
+            followUpResponse.content =
+              followUpFilterResult.filteredContent || '[filtered]';
+          }
+        }
+
         // filter emojis from follow-up response too
         const filteredFollowUp = removeUnicodeEmojis(followUpResponse.content);
         const filteredFollowUpRaw = followUpResponse.rawContent
@@ -162,11 +208,20 @@ const messageCreate: Event = {
             guildId: followUpMessage.guildId,
             author: followUpMessage.author.username,
             authorId: followUpMessage.author.id,
-            content: filteredFollowUpRaw,
+            content: followUpFiltered ? followUpOriginal : filteredFollowUpRaw,
             timestamp: followUpMessage.createdAt,
             isBot: true,
             botId: message.client.user!.id,
           });
+
+          if (followUpFiltered) {
+            await memoryService.addSystemMessage({
+              channelId: message.channelId,
+              guildId: message.guildId,
+              content: `[FILTER: Follow-up response was filtered.]`,
+              timestamp: new Date(),
+            });
+          }
         }
       } else if (filteredContent && filteredContent.trim().length > 0) {
         const sentMessage = await message.reply(filteredContent);
@@ -177,11 +232,20 @@ const messageCreate: Event = {
           guildId: sentMessage.guildId,
           author: sentMessage.author.username,
           authorId: sentMessage.author.id,
-          content: filteredRawContent,
+          content: wasFiltered ? originalContent : filteredRawContent,
           timestamp: sentMessage.createdAt,
           isBot: true,
           botId: message.client.user!.id,
         });
+
+        if (wasFiltered) {
+          await memoryService.addSystemMessage({
+            channelId: message.channelId,
+            guildId: message.guildId,
+            content: `[FILTER: Response was filtered. Matched words: ${matchedWords.join(', ')}.]`,
+            timestamp: new Date(),
+          });
+        }
       }
     } catch (error) {
       logger.error('error handling message:', error);

@@ -1,6 +1,7 @@
 import { logger } from './logger';
 
 export interface FilterConfig {
+  enabled: boolean;
   blacklistedWords: string[];
   replaceWithTag?: string;
 }
