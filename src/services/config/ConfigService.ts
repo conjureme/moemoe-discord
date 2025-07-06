@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { AIConfig } from '../../types/ai';
+import { FilterConfig } from '../../utils/wordFilter';
 import { BotConfig, MemoryConfig } from '../../types/config';
 import { logger } from '../../utils/logger';
 
@@ -10,6 +11,7 @@ export class ConfigService {
   private aiConfig!: AIConfig;
   private botConfig!: BotConfig;
   private memoryConfig!: MemoryConfig;
+  private filterConfig!: FilterConfig;
 
   constructor() {
     this.configPath = path.join(process.cwd(), 'config');
@@ -32,6 +34,10 @@ export class ConfigService {
       const memoryConfigPath = this.findConfigFile('memory.json');
       this.memoryConfig = this.loadJsonFile(memoryConfigPath);
       logger.debug('loaded memory configuration');
+
+      const filterConfigPath = this.findConfigFile('filter.json');
+      this.filterConfig = this.loadJsonFile(filterConfigPath);
+      logger.debug('loaded filter configuration');
 
       // override with environment variables if set
       this.applyEnvironmentOverrides();
@@ -96,6 +102,10 @@ export class ConfigService {
     return { ...this.memoryConfig };
   }
 
+  getFilterConfig(): FilterConfig {
+    return { ...this.filterConfig };
+  }
+
   // update config methods for runtime changes
   updateAIConfig(updates: Partial<AIConfig>): void {
     this.aiConfig = { ...this.aiConfig, ...updates };
@@ -110,6 +120,11 @@ export class ConfigService {
   updateMemoryConfig(updates: Partial<MemoryConfig>): void {
     this.memoryConfig = { ...this.memoryConfig, ...updates };
     logger.info('memory configuration updated');
+  }
+
+  updateFilterConfig(updates: Partial<FilterConfig>): void {
+    this.filterConfig = { ...this.filterConfig, ...updates };
+    logger.info('filter config updated!');
   }
 
   // save configurations back to files
@@ -129,5 +144,11 @@ export class ConfigService {
     const filepath = path.join(this.configPath, 'memory.json');
     fs.writeFileSync(filepath, JSON.stringify(this.memoryConfig, null, 2));
     logger.info('memory configuration saved');
+  }
+
+  saveFilterConfig(): void {
+    const filepath = path.join(this.configPath, 'filter.json');
+    fs.writeFileSync(filepath, JSON.stringify(this.filterConfig, null, 2));
+    logger.info('filter config saved!');
   }
 }
