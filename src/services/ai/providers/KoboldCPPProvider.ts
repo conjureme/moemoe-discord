@@ -1,5 +1,5 @@
 import { BaseProvider } from './BaseProvider';
-import { AIResponse, ChatContext, VisionMessage } from '../../../types/ai';
+import { AIResponse, ChatContext, AIMessage } from '../../../types/ai';
 import { logger } from '../../../utils/logger';
 
 interface KoboldResponse {
@@ -132,7 +132,7 @@ export class KoboldCPPProvider extends BaseProvider {
 
     for (const message of context.messages) {
       if (message.role === 'user') {
-        const visionMessage = message as VisionMessage;
+        const visionMessage = message as AIMessage;
         if (visionMessage.images && visionMessage.images.length > 0) {
           for (const imageUrl of visionMessage.images) {
             const base64 = await this.fetchImageAsBase64(imageUrl);

@@ -1,6 +1,4 @@
 {
-  "provider": "koboldcpp",
-  "apiUrl": "http://localhost:5001",
   "instruct": {
     "input_sequence": "<|im_start|>user\n",
     "output_sequence": "",

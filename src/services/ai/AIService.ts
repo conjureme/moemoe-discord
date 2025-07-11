@@ -35,17 +35,36 @@ export class AIService {
     );
 
     const aiConfig = this.configService.getAIConfig();
-    this.provider = this.createProvider(aiConfig);
+    const connectionConfig = this.configService.getAIConnectionConfig();
+
+    if (!connectionConfig.apiUrl) {
+      throw new Error('API_URL environment variable is required');
+    }
+
+    if (!connectionConfig.apiProvider) {
+      throw new Error('API_PROVIDER environment variable is required');
+    }
+
+    const providerConfig = {
+      ...aiConfig,
+      apiProvider: connectionConfig.apiProvider,
+      apiUrl: connectionConfig.apiUrl,
+      apiKey: connectionConfig.apiKey,
+    };
+
+    this.provider = this.createProvider(providerConfig);
 
     logger.info(`initialized ai service with ${this.provider.getName()}`);
   }
 
-  private createProvider(config: AIConfig): BaseProvider {
-    switch (config.provider) {
+  private createProvider(
+    config: AIConfig & { apiProvider: string; apiUrl: string; apiKey?: string }
+  ): BaseProvider {
+    switch (config.apiProvider) {
       case 'koboldcpp':
         return new KoboldCPPProvider(config);
       default:
-        throw new Error(`unsupported ai provider: ${config.provider}`);
+        throw new Error(`unsupported ai provider: ${config.apiProvider}`);
     }
   }
 

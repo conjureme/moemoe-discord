@@ -20,17 +20,14 @@ export class ConfigService {
 
   private loadConfigurations(): void {
     try {
-      // load ai config
       const aiConfigPath = this.findConfigFile('ai.json');
       this.aiConfig = this.loadJsonFile(aiConfigPath);
       logger.debug('loaded ai configuration');
 
-      // load bot config
       const botConfigPath = this.findConfigFile('bot.json');
       this.botConfig = this.loadJsonFile(botConfigPath);
       logger.debug('loaded bot configuration');
 
-      // load memory config
       const memoryConfigPath = this.findConfigFile('memory.json');
       this.memoryConfig = this.loadJsonFile(memoryConfigPath);
       logger.debug('loaded memory configuration');
@@ -38,9 +35,6 @@ export class ConfigService {
       const filterConfigPath = this.findConfigFile('filter.json');
       this.filterConfig = this.loadJsonFile(filterConfigPath);
       logger.debug('loaded filter configuration');
-
-      // override with environment variables if set
-      this.applyEnvironmentOverrides();
 
       logger.success('all configurations loaded successfully');
     } catch (error) {
@@ -75,19 +69,16 @@ export class ConfigService {
     }
   }
 
-  private applyEnvironmentOverrides(): void {
-    // override ai provider settings from environment
-    if (process.env.AI_PROVIDER) {
-      this.aiConfig.provider = process.env.AI_PROVIDER as 'local' | 'openai';
-    }
+  getAIConnectionConfig(): {
+    apiProvider?: string;
+    apiUrl?: string;
+    apiKey?: string;
+  } {
+    const apiProvider = process.env.API_PROVIDER;
+    const apiUrl = process.env.API_URL;
+    const apiKey = process.env.API_KEY;
 
-    if (process.env.AI_API_URL) {
-      this.aiConfig.apiUrl = process.env.AI_API_URL;
-    }
-
-    if (process.env.AI_API_KEY) {
-      this.aiConfig.apiKey = process.env.AI_API_KEY;
-    }
+    return { apiProvider, apiUrl, apiKey };
   }
 
   getAIConfig(): AIConfig {

@@ -3,9 +3,15 @@ import { AIConfig, AIResponse, ChatContext } from '../../../types/ai';
 import { logger } from '../../../utils/logger';
 
 export abstract class BaseProvider {
-  protected config: AIConfig;
+  protected config: AIConfig & {
+    apiProvider: string;
+    apiUrl: string;
+    apiKey?: string;
+  };
 
-  constructor(config: AIConfig) {
+  constructor(
+    config: AIConfig & { apiProvider: string; apiUrl: string; apiKey?: string }
+  ) {
     this.config = config;
   }
 

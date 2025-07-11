@@ -1,6 +1,4 @@
 export interface AIConfig {
-  provider: 'koboldcpp' | 'oobabooga' | 'openai' | 'anthropic';
-  apiUrl: string;
   instruct: {
     input_sequence: string;
     output_sequence: string;
@@ -127,6 +125,12 @@ export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
   name?: string;
+  images?: string[];
+}
+
+export interface ChatContext {
+  messages: AIMessage[];
+  systemPrompt: string;
 }
 
 export interface AIResponse {
@@ -136,13 +140,4 @@ export interface AIResponse {
     completionTokens: number;
     totalTokens: number;
   };
-}
-
-export interface ChatContext {
-  messages: (AIMessage | VisionMessage)[];
-  systemPrompt: string;
-}
-
-export interface VisionMessage extends AIMessage {
-  images?: string[]; // images will be base64 encoded
 }

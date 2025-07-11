@@ -7,6 +7,7 @@ import {
 
 import { logger } from '../../utils/logger';
 import { ChannelType, TextChannel, NewsChannel } from 'discord.js';
+import { serviceManager } from '../../services/ServiceManager';
 
 export class SendChannelMessageFunction extends BaseFunction {
   definition: FunctionDefinition = {
@@ -108,6 +109,20 @@ export class SendChannelMessageFunction extends BaseFunction {
         logger.info(
           `sent message to #${textChannel.name} (${textChannel.id}) in ${textChannel.guild.name}`
         );
+
+        const memoryService = serviceManager.getMemoryService();
+
+        await memoryService.addMessage({
+          id: sentMessage.id,
+          channelId: sentMessage.channelId,
+          guildId: sentMessage.guildId,
+          author: sentMessage.author.username,
+          authorId: sentMessage.author.id,
+          content: message,
+          timestamp: sentMessage.createdAt,
+          isBot: true,
+          botId: context.message.client.user!.id,
+        });
 
         return {
           success: true,

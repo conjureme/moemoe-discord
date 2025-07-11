@@ -1,9 +1,7 @@
 import { ConfigService } from '../config/ConfigService';
 import { MemoryMessage } from '../memory/types';
-import { AIMessage, VisionMessage } from '../../types/ai';
+import { AIMessage } from '../../types/ai';
 import { FunctionRegistry } from '../../functions/FunctionRegistry';
-
-import { MessageFormatter } from '../../utils/MessageFormatter';
 
 import { logger } from '../../utils/logger';
 
@@ -51,7 +49,12 @@ export class PromptBuilder {
     storyString = storyString.replace(/{{user}}/g, 'User');
     storyString = storyString.replace(/\n*{{trim}}\n*/g, '');
 
-    const functionPrompt = this.functionRegistry.generatePromptSection();
+    const functionsEnabled = process.env.ENABLE_FUNCTIONS == 'true';
+    const functionPrompt = functionsEnabled
+      ? this.functionRegistry.generatePromptSection()
+      : null;
+
+    // hack to fix, update later
     if (functionPrompt) {
       const endMarker = '### **End of Roleplay Context**';
       const endIndex = storyString.indexOf(endMarker);
@@ -101,7 +104,7 @@ export class PromptBuilder {
       if (isSystem) {
         // system messages (function results, etc)
         messages.push({
-          role: 'system',
+          role: 'user',
           content: msg.content,
           name: 'System',
         });
@@ -113,7 +116,7 @@ export class PromptBuilder {
           name: botConfig.name,
         });
       } else if (isUser) {
-        const userMessage: AIMessage | VisionMessage = {
+        const userMessage: AIMessage = {
           role: 'user',
           content: msg.content,
           name: msg.author,
@@ -125,7 +128,7 @@ export class PromptBuilder {
             att.type.startsWith('image/')
           );
           if (imageAttachments.length > 0) {
-            (userMessage as VisionMessage).images = imageAttachments.map(
+            (userMessage as AIMessage).images = imageAttachments.map(
               (att) => att.url
             );
           }
