@@ -1,164 +1,192 @@
-# moemoe 🌸
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/db6fb2fc-f917-4bd5-801f-7a8994ac22a0" alt="moemoe logo" width="200">
+  <p><strong>a conversational discord bot with a bunch of cool stuff like function calling, character card importing, and other things!</strong></p>
+  <p>
+    <img src="https://img.shields.io/badge/discord.js-v14-blue?style=flat-square&logo=discord" alt="Discord.js">
+    <img src="https://img.shields.io/badge/TypeScript-5.0+-blue?style=flat-square&logo=typescript" alt="TypeScript">
+    <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
+  </p>
+</div>
 
-a super customizable discord bot with personalities, memory, and a variety of other stuff. built for conversation and seamless server integration.
+## what is moemoe?
 
-<p align="center">
-  <img src="https://img.shields.io/badge/discord.js-v14-blue?style=flat-square&logo=discord" alt="Discord.js">
-  <img src="https://img.shields.io/badge/TypeScript-5.0+-blue?style=flat-square&logo=typescript" alt="TypeScript">
-  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/status-early%20development-orange?style=flat-square" alt="Status">
-</p>
+moemoe is the name of the multi-faceted discord bot built for my server! unlike traditional command-based bots, moemoe is able to engage in conversations while maintaining context and personality across messages and channels. it's cable to perform actions autonomously through function calling- sending DMs, updating its own status, joining voice channels, and much more- all within the flow of conversation. moemoe is also capable of running its own slash commands!
 
-## Features
+### key features
 
-- **customization** - create unique bot personalities with custom prompts, traits, and dialogue styles
-- **conversation memories** - maintains context across messages with intelligent memory management
-- **multiple AI providers** - support for OpenAI API, local models (via KoboldCPP), and more coming soon
-- **function calling** - extensible function system for enhanced interactions (DMs, server actions, etc.)
-- **per-channel memory** - separate conversation contexts for each channel
-- **permission configuration** - granular command permissions and moderation tools
+- **conversational first** - mention or DM the bot for chat interaction
+- **persistent memory** - maintains conversation context per channel with intelligent token management
+- **autonomous actions** - can execute discord actions (send messages, join calls, etc.) and slash commands
+- **customizable personality** - define unique traits, dialogue styles, and behaviors via JSON or future character card importing/dashboard
+- **multi-provider support** - works with local models (such as [KoboldCPP](https://github.com/LostRuins/koboldcpp)) or cloud-provider APIs
+- **response filtering** - customizable word filter to ensure responses stay aligned with your own server and use case
 
-## Getting Started
+## quick start
 
-### Prerequisites
+### prerequisites
 
 - Node.js 18+ and npm
 - discord bot token ([create one here](https://discord.com/developers/applications))
-- AI backend (one of):
-  - OpenAI API key
-  - local model with [KoboldCPP](https://github.com/LostRuins/koboldcpp)
-  - other compatible API endpoints
+- AI backend:
+  - local model with [KoboldCPP](https://github.com/LostRuins/koboldcpp) (recommended)
+  - OpenAI API (coming soon)
 
-### Installation
+### setup
 
-1. **Clone the repository**
+```bash
+# clone and install
+git clone https://github.com/conjureme/moemoe.git
+cd moemoe
+npm install
 
-   ```bash
-   git clone https://github.com/conjureme/moemoe.git
-   cd moemoe
-   ```
+# configure environment
+cp .env.example .env
+# edit .env with your bot token and AI settings
 
-2. **Install dependencies**
+# deploy discord commands
+npm run deploy
 
-   ```bash
-   npm install
-   ```
+# start the bot
+npm run dev
+```
 
-3. **Set up environment variables**
+### basic configuration
 
-   ```bash
-   cp .env.example .env
-   ```
+edit `config/bot.json` to customize your bot's personality:
 
-   Edit `.env` with your configuration:
+```json
+{
+  "name": "your_bot_name",
+  "description": "bot description (traits, dialogue style, etc.)",
+  "data": {
+    "system_prompt": "how the bot should behave",
+    "first_mes": "greeting message",
+    "mes_example": "example responses"
+  }
+}
+```
 
-   ```env
-   # discord config
-   BOT_TOKEN=your_bot_token_here
-   CLIENT_ID=your_client_id_here
-   GUILD_ID=your_guild_id_here  # optional: for guild-specific commands
+## usage
 
-   # AI config
-   AI_PROVIDER=local  # or 'openai'
-   AI_API_URL=http://localhost:5000  # local models
-   # OPENAI_API_KEY=sk-...  # OpenAI endpoint
-   ```
+### chatting
 
-4. **Run the bot**
+- **mention** `@moemoe` in any channel to start talking
+- **DM** the bot for conversations
+- each channel maintains its own conversation history
 
-   ```bash
-   # deploy commands to discord
-   npm run deploy-commands
+### commands
 
-   # start the bot
-   npm run dev
-   ```
+- `/memory clear` - clear conversation history in current channel
+- `/memory stats` - view memory usage statistics
+- `/embed` - create custom discord embeds
 
-## Usage
+### function examples
 
-### Basic Interaction
+just ask naturally in conversation:
 
-- **mention the bot** or **DM it** to start a conversation
-- the bot maintains conversation context within each channel
-- responds with its configured personality and style
+- "send a dm to @user saying hello"
+- "update your status to playing minecraft"
+- "join the voice channel i'm in"
+- "change your bio to something cool"
 
-### Commands
+## file structure
 
-more coming soon
+```
+src/
+├── bot/          # discord client and initialization
+├── commands/     # slash command handlers
+├── events/       # discord event handlers
+├── services/     # core services
+│   ├── ai/       # AI providers and prompt building
+│   ├── memory/   # conversation persistence
+│   └── config/   # configuration management
+├── functions/    # bot action implementations
+└── utils/        # shared utilities
+```
 
-## Customization
+## advanced configuration
 
-### Creating Your Own Persona
+a web dashboard is in the works for easier configuration and imports
 
-1. navigate to `config/` directory
-2. edit `bot.json` to define your character:
+### AI settings (`config/ai.json`)
 
-### AI Configuration
+- sampler settings (temperature, top_p, etc.)
+- instruction formatting (ChatML, Mistral, etc.)
+- context templates
 
-Configure model parameters in `config/ai.json`:
+### memory settings (`config/memory.json`)
 
-- temperature, top_p, repetition penalty
-- max tokens and response length
-- custom stop sequences
-- and much more!
+- message retention limits
+- token context windows
+- user message formatting
 
-## Roadmap
+### filter settings (`config/filter.json`)
 
-### Current Focus
+- content moderation
+- blacklisted words
+- replacement tags
 
-- [x] core discord bot functionality
-- [x] basic memory system
+## development
+
+```bash
+# run in development mode
+npm run dev
+
+# deploy commands globally
+npm run deploy:global
+
+# deploy to specific guild
+npm run deploy -- --guild GUILD_ID
+```
+
+## roadmap
+
+### completed
+
+- [x] core bot functionality
+- [x] memory system with persistence
 - [x] configurable personas
-- [x] model functions & tooling
+- [x] function calling
+- [x] word filtering
+- [x] image understanding (for vision models)
+
+### in progress
+
+- [ ] voice channel audio support
 - [ ] web dashboard for configuration
-- [ ] multiple AI provider support
-
-### Planned Features
-
-- [ ] voice channel support
-- [ ] image understanding (vision models)
-- [ ] lorebook system for extended context
 - [ ] character card imports
-- [ ] RAG
+
+### planned
+
+- [ ] full provider support
+- [ ] lorebook system for extended context
+- [ ] RAG (retrieval augmented generation)
 - [ ] multi-bot conversations
 - [ ] webhook integrations
 
-## Architecture
+### considering
 
-```
-moemoe/
-├── src/
-│   ├── bot/           # discord bot core
-│   ├── commands/      # slash commands
-│   ├── events/        # discord event handlers
-│   ├── services/      # business logic
-│   │   ├── ai/        # AI providers & prompting
-│   │   ├── memory/    # conversation memory
-│   │   └── config/    # configuration management
-│   └── functions/     # extensible bot functions
-├── config/            # user configuration files
-└── data/              # runtime data (memory, logs)
-```
+- [ ] swipes and message regeneration
+- [ ] support for longer, more "story" based conversation
+- [ ] websearch utility
 
-## Contributing
+### absolutely not happening
 
-contributions are more than welcome! feel free to:
+- image generation
 
-- 🐛 report bugs
-- 💡 suggest features
-- 🔧 submit pull requests
-- 📖 improve documentation
-- 🎨 share custom personas
+## contributing
 
-## License
+contributions welcome! feel free to:
 
-the moemoe project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- report bugs or request features
+- submit pull requests
+- share custom personas
+- improve documentation
 
-## Acknowledgments
+## license
 
-- built with [discord.js](https://discord.js.org/)
-- massive thanks to the open-source AI community
+MIT - see [LICENSE](LICENSE) for details
 
-<p align="center">
-  made with 💜 by tyler
-</p>
+---
+
+<p align="center">made with 💜 by tyler</p>
