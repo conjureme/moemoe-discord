@@ -156,6 +156,12 @@ npm run deploy -- --guild GUILD_ID
 - [ ] web dashboard for configuration
 - [ ] character card imports
 
+**discord-bot specific:**
+
+- [ ] currency system
+- [ ] minigames/gambling
+- [ ] autoresponder
+
 ### planned
 
 - [ ] full provider support
