@@ -27,6 +27,20 @@ async function deployCommands() {
   const rest = new REST().setToken(BOT_TOKEN!);
 
   try {
+    if (args.includes('--clear')) {
+      const guildId = process.env.GUILD_ID;
+      if (guildId) {
+        await rest.put(Routes.applicationGuildCommands(CLIENT_ID!, guildId), {
+          body: [],
+        });
+        console.log(`cleared all commands in guild: ${guildId}`);
+        return;
+      } else {
+        console.error('no guild id provided for --clear');
+        return;
+      }
+    }
+
     console.log(
       `starting refresh of ${commands.length} application (/) commands.`
     );
