@@ -1,6 +1,8 @@
 import { ConfigService } from './config/ConfigService';
 import { MemoryService } from './memory/MemoryService';
 import { AIService } from './ai/AIService';
+import { EconomyService } from './economy/EconomyService';
+
 import { logger } from '../utils/logger';
 
 class ServiceManager {
@@ -8,6 +10,7 @@ class ServiceManager {
   private configService: ConfigService | null = null;
   private memoryService: MemoryService | null = null;
   private aiService: AIService | null = null;
+  private economyService: EconomyService | null = null;
 
   private constructor() {
     // private constructor for singleton
@@ -45,11 +48,20 @@ class ServiceManager {
     return this.aiService;
   }
 
+  public getEconomyService(): EconomyService {
+    if (!this.economyService) {
+      this.economyService = new EconomyService();
+      logger.debug('initialized EconomyService');
+    }
+    return this.economyService;
+  }
+
   // reset services when needed
   public resetServices(): void {
     this.configService = null;
     this.memoryService = null;
     this.aiService = null;
+    this.economyService = null;
     logger.info('reset all services');
   }
 }

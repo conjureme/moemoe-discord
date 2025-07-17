@@ -3,7 +3,6 @@ import { logger } from '../utils/logger';
 import { serviceManager } from '../services/ServiceManager';
 import * as dotenv from 'dotenv';
 
-// load environment variables
 dotenv.config();
 
 const { BOT_TOKEN } = process.env;
@@ -13,7 +12,6 @@ if (!BOT_TOKEN) {
   process.exit(1);
 }
 
-// create the client
 const client = new ExtendedClient();
 
 // handle process events for graceful shutdown
@@ -26,6 +24,12 @@ process.on('SIGINT', () => {
     memoryService.cleanup();
   }
 
+  // cleanup economy service
+  const economyService = serviceManager.getEconomyService();
+  if (economyService && typeof economyService.cleanup === 'function') {
+    economyService.cleanup();
+  }
+
   client.destroy();
   process.exit(0);
 });
@@ -33,10 +37,14 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
   logger.info('received SIGTERM, shutting down gracefully...');
 
-  // cleanup memory service file watchers
   const memoryService = serviceManager.getMemoryService();
   if (memoryService && typeof memoryService.cleanup === 'function') {
     memoryService.cleanup();
+  }
+
+  const economyService = serviceManager.getEconomyService();
+  if (economyService && typeof economyService.cleanup === 'function') {
+    economyService.cleanup();
   }
 
   client.destroy();
@@ -56,7 +64,6 @@ process.on('uncaughtException', (error) => {
   }, 1000);
 });
 
-// start the bot
 async function startBot() {
   logger.info('starting bot...');
 
@@ -64,7 +71,6 @@ async function startBot() {
     // initialize client (load commands and events)
     await client.initialize();
 
-    // login to discord
     await client.login(BOT_TOKEN);
   } catch (error) {
     logger.error('failed to start bot:', error);
@@ -72,5 +78,4 @@ async function startBot() {
   }
 }
 
-// run the bot
 startBot();
