@@ -54,20 +54,27 @@ export class PromptBuilder {
       ? this.functionRegistry.generatePromptSection()
       : null;
 
-    // hack to fix, update later
-    if (functionPrompt) {
-      const endMarker = '### **End of Roleplay Context**';
-      const endIndex = storyString.indexOf(endMarker);
+    if (functionPrompt && aiConfig.instruct.system_suffix) {
+      const systemSuffix = aiConfig.instruct.system_suffix.trim();
 
-      if (endIndex !== -1) {
+      const lastIndex = storyString.lastIndexOf(systemSuffix);
+
+      if (lastIndex !== -1) {
+        // inject function prompt before the system suffix
         storyString =
-          storyString.slice(0, endIndex) +
+          storyString.slice(0, lastIndex) +
+          '\n' +
           functionPrompt +
           '\n' +
-          storyString.slice(endIndex);
+          storyString.slice(lastIndex);
       } else {
-        storyString += functionPrompt;
+        logger.warn(
+          'system suffix not found in story string, appending function prompt'
+        );
+        storyString += '\n' + functionPrompt;
       }
+    } else if (functionPrompt) {
+      storyString += '\n' + functionPrompt;
     }
 
     logger.debug(storyString);
