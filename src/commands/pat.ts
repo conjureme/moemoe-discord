@@ -127,9 +127,14 @@ const pat: Command = {
         );
         const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
 
+        const embed = new EmbedBuilder()
+          .setColor(0xfaf0e7)
+          .setDescription(
+            `### STOP IT ${interaction.user.displayName}! you recently pat my head... try again in ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`
+          );
+
         await interaction.reply({
-          content: `### STOP IT ${interaction.user.displayName}! you recently pat my head... try again in ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`,
-          flags: ['Ephemeral'],
+          embeds: [embed],
         });
         return;
       }
