@@ -63,6 +63,16 @@ const settings: Command = {
                 name: 'starting balance',
                 value: economy.settings.startingBalance.toString(),
                 inline: true,
+              },
+              {
+                name: '`/pat` settings',
+                value: `○ ${economy.currency.emoji} ${economy.settings.patMinReward || 1} - ${economy.settings.patMaxReward || 10}\n○ cooldown: ${economy.settings.patCooldownMinutes || 60} minutes`,
+                inline: true,
+              },
+              {
+                name: '`/fish` settings',
+                value: `○ base reward: ${economy.currency.emoji} ${economy.settings.fishBaseReward}\n○ cooldown: ${economy.settings.fishCooldownMinutes} minutes`,
+                inline: true,
               }
             )
             .setFooter({

@@ -55,6 +55,65 @@ const currency: Command = {
                 .setMinValue(0)
             )
         )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName('pat-reward')
+            .setDescription('set the reward range for head pat command')
+            .addIntegerOption((option) =>
+              option
+                .setName('min')
+                .setDescription('minimum reward amount')
+                .setRequired(true)
+                .setMinValue(1)
+            )
+            .addIntegerOption((option) =>
+              option
+                .setName('max')
+                .setDescription('maximum reward amount')
+                .setRequired(true)
+                .setMinValue(1)
+            )
+        )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName('pat-cooldown')
+            .setDescription('set the cooldown for head pat command in minutes')
+            .addIntegerOption((option) =>
+              option
+                .setName('minutes')
+                .setDescription('cooldown in minutes')
+                .setRequired(true)
+                .setMinValue(1)
+                .setMaxValue(1440)
+            )
+        )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName('fish-reward')
+            .setDescription('set the base reward for fishing command')
+            .addIntegerOption((option) =>
+              option
+                .setName('amount')
+                .setDescription(
+                  'base reward amount (multiplied by catch rarity)'
+                )
+                .setRequired(true)
+                .setMinValue(1)
+            )
+        )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName('fish-cooldown')
+            .setDescription('set the cooldown for fishing command in minutes')
+            .addIntegerOption((option) =>
+              option
+                .setName('minutes')
+                .setDescription('cooldown in minutes')
+                .setRequired(true)
+                .setMinValue(1)
+                .setMaxValue(1440)
+            )
+        )
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -162,6 +221,127 @@ const currency: Command = {
 
             await interaction.reply({ embeds: [embed] });
             logger.info(`starting balance updated in ${guildName}: ${amount}`);
+            break;
+          }
+
+          case 'pat-reward': {
+            const min = interaction.options.getInteger('min', true);
+            const max = interaction.options.getInteger('max', true);
+
+            if (min > max) {
+              await interaction.reply({
+                content:
+                  'minimum reward cannot be greater than maximum reward!',
+                flags: ['Ephemeral'],
+              });
+              return;
+            }
+
+            economyService.updateGuildSettings(guildId, {
+              patMinReward: min,
+              patMaxReward: max,
+            });
+
+            const guildEconomy = economyService.getGuildEconomy(guildId);
+            const currency = guildEconomy?.currency || {
+              emoji: '🧀',
+              name: 'curds',
+            };
+
+            const embed = new EmbedBuilder()
+              .setColor(0xfaf0e7)
+              .setAuthor({
+                name: guildName,
+                iconURL: guildImage,
+              })
+              .setTitle('pat reward updated !')
+              .setDescription(
+                `pat rewards now range from ${currency.emoji} **${min}** to ${currency.emoji} **${max} ${currency.name}**`
+              );
+
+            await interaction.reply({ embeds: [embed] });
+            logger.info(
+              `pat reward range updated in ${guildName}: ${min}-${max}`
+            );
+            break;
+          }
+
+          case 'pat-cooldown': {
+            const minutes = interaction.options.getInteger('minutes', true);
+
+            economyService.updateGuildSettings(guildId, {
+              patCooldownMinutes: minutes,
+            });
+
+            const embed = new EmbedBuilder()
+              .setColor(0xfaf0e7)
+              .setAuthor({
+                name: guildName,
+                iconURL: guildImage,
+              })
+              .setTitle('pat cooldown updated !')
+              .setDescription(
+                `pat cooldown is now **${minutes} minute${minutes > 1 ? 's' : ''}**`
+              );
+
+            await interaction.reply({ embeds: [embed] });
+            logger.info(
+              `pat cooldown updated in ${guildName}: ${minutes} minutes`
+            );
+            break;
+          }
+
+          case 'fish-reward': {
+            const amount = interaction.options.getInteger('amount', true);
+
+            economyService.updateGuildSettings(guildId, {
+              fishBaseReward: amount,
+            });
+
+            const guildEconomy = economyService.getGuildEconomy(guildId);
+            const currency = guildEconomy?.currency || {
+              emoji: '🧀',
+              name: 'curds',
+            };
+
+            const embed = new EmbedBuilder()
+              .setColor(0xfaf0e7)
+              .setAuthor({
+                name: guildName,
+                iconURL: guildImage,
+              })
+              .setTitle('fishing reward updated !')
+              .setDescription(
+                `base fishing reward is now ${currency.emoji} **${amount} ${currency.name}** (multiplied by catch rarity)`
+              );
+
+            await interaction.reply({ embeds: [embed] });
+            logger.info(`fish base reward updated in ${guildName}: ${amount}`);
+            break;
+          }
+
+          case 'fish-cooldown': {
+            const minutes = interaction.options.getInteger('minutes', true);
+
+            economyService.updateGuildSettings(guildId, {
+              fishCooldownMinutes: minutes,
+            });
+
+            const embed = new EmbedBuilder()
+              .setColor(0xfaf0e7)
+              .setAuthor({
+                name: guildName,
+                iconURL: guildImage,
+              })
+              .setTitle('fishing cooldown updated !')
+              .setDescription(
+                `fishing cooldown is now **${minutes} minute${minutes > 1 ? 's' : ''}**`
+              );
+
+            await interaction.reply({ embeds: [embed] });
+            logger.info(
+              `fish cooldown updated in ${guildName}: ${minutes} minutes`
+            );
             break;
           }
         }

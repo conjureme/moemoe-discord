@@ -14,6 +14,11 @@ export interface GuildEconomy {
   users: Record<string, UserBalance>;
   settings: {
     startingBalance: number;
+    patMinReward?: number;
+    patMaxReward?: number;
+    patCooldownMinutes?: number;
+    fishBaseReward?: number;
+    fishCooldownMinutes?: number;
   };
   createdAt: string;
   lastModified: string;

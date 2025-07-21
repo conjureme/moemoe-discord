@@ -187,7 +187,7 @@ const fish: Command = {
 
       const defaultFishSettings = {
         baseReward: 40,
-        cooldownMinutes: 240,
+        cooldownMinutes: 60,
       };
 
       const fishSettings = {

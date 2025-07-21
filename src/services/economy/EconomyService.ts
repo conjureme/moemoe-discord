@@ -115,6 +115,11 @@ export class EconomyService {
       users: {},
       settings: {
         startingBalance: 0,
+        patMinReward: 20,
+        patMaxReward: 60,
+        patCooldownMinutes: 60,
+        fishBaseReward: 40,
+        fishCooldownMinutes: 60,
       },
       createdAt: new Date().toISOString(),
       lastModified: new Date().toISOString(),

@@ -22,7 +22,7 @@ const balance: Command = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     try {
-      // defer reply for better UX
+      // defers reply for better UX
       await interaction.deferReply();
 
       const targetUser =
@@ -44,12 +44,11 @@ const balance: Command = {
         targetUser.id
       );
 
-      // get guild economy info for currency
       const guildEconomy = economyService.getGuildEconomy(guildId);
       const currency = guildEconomy?.currency || { emoji: '🧀', name: 'curds' };
 
       const embed = new EmbedBuilder()
-        .setColor(0xfff140)
+        .setColor(0xfaf0e7)
         .setAuthor({
           name: `${targetUser.username}`,
           iconURL: targetUser.displayAvatarURL(),
