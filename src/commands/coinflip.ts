@@ -82,7 +82,7 @@ const coinflip: Command = {
 
       const animationEmbed = new EmbedBuilder()
         .setColor(0xf59e0b)
-        .setTitle('🪙 coin flip')
+        .setTitle('✦ coin flip time !')
         .setDescription(
           `betting ${currency.emoji} **${amount.toLocaleString()} ${currency.name}** on **${choice}**\n\nflipping...`
         )
@@ -109,7 +109,7 @@ const coinflip: Command = {
       const won = result === choice;
 
       const resultEmbed = new EmbedBuilder()
-        .setTitle(`🪙 ${result}!`)
+        .setTitle(`it was ${result} !`)
         .setFooter({
           text: `${interaction.user.username}`,
           iconURL: interaction.user.displayAvatarURL(),
@@ -164,37 +164,8 @@ const coinflip: Command = {
         );
       }
 
-      // add play again button
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId('coinflip_again')
-          .setLabel('flip again')
-          .setStyle(ButtonStyle.Primary)
-          .setEmoji('🔄')
-      );
-
       await interaction.editReply({
         embeds: [resultEmbed],
-        components: [row],
-      });
-
-      // handle play again button
-      const collector = interaction.channel?.createMessageComponentCollector({
-        componentType: ComponentType.Button,
-        time: 60000,
-        filter: (i) =>
-          i.user.id === interaction.user.id && i.customId === 'coinflip_again',
-      });
-
-      collector?.on('collect', async (i) => {
-        await i.reply({
-          content: `use </coinflip:${interaction.commandId}> to play again!`,
-          flags: ['Ephemeral'],
-        });
-      });
-
-      collector?.on('end', () => {
-        interaction.editReply({ components: [] }).catch(() => {});
       });
     } catch (error) {
       logger.error('error in coinflip command:', error);
