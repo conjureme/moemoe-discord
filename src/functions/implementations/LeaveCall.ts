@@ -8,6 +8,8 @@ import {
 import { logger } from '../../utils/logger';
 import { VoiceConnectionManager } from '../../services/voice/VoiceConnectionManager';
 
+import { getVoiceConnection } from '@discordjs/voice';
+
 export class LeaveCallFunction extends BaseFunction {
   definition: FunctionDefinition = {
     name: 'leave_call',
@@ -28,12 +30,30 @@ export class LeaveCallFunction extends BaseFunction {
       }
 
       const voiceManager = VoiceConnectionManager.getInstance();
-      const connectionInfo = voiceManager.getConnection(context.guildId);
+      let connectionInfo = voiceManager.getConnection(context.guildId);
 
       if (!connectionInfo) {
+        const discordConnection = getVoiceConnection(context.guildId);
+
+        if (!discordConnection) {
+          return {
+            success: false,
+            message: 'i am not in a voice channel',
+          };
+        }
+
+        logger.warn(
+          `found orphaned voice connection in guild ${context.guildId}, cleaning up`
+        );
+        discordConnection.destroy();
+
         return {
-          success: false,
-          message: 'i am not in a voice channel',
+          success: true,
+          message: 'left voice channel (cleaned up orphaned connection)',
+          data: {
+            channelName: 'unknown',
+            duration: 0,
+          },
         };
       }
 
@@ -57,6 +77,26 @@ export class LeaveCallFunction extends BaseFunction {
       };
     } catch (error) {
       logger.error('error in leave_call function:', error);
+
+      // fallback- try to force disconnect any existing connection
+      try {
+        if (context.guildId) {
+          const discordConnection = getVoiceConnection(context.guildId);
+          if (discordConnection) {
+            discordConnection.destroy();
+            logger.info(
+              `force disconnected from voice channel in guild ${context.guildId}`
+            );
+            return {
+              success: true,
+              message: 'force disconnected from voice channel',
+            };
+          }
+        }
+      } catch (fallbackError) {
+        logger.error('error in fallback disconnect:', fallbackError);
+      }
+
       return {
         success: false,
         message: `failed to leave voice channel: ${error instanceof Error ? error.message : 'unknown error'}`,
