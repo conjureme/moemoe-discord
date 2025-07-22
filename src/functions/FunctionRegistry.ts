@@ -52,10 +52,10 @@ export class FunctionRegistry {
 
     let prompt = '\n### Function Calling Rules\n';
     prompt +=
-      'You have the ability to run various functions to perform tasks, but you should only ever call them when a user explicitly asks you to. Take into consideration chat context and why a user is asking you to run one before you do.\n';
+      'You have the ability to run various functions to perform tasks, but you should only ever call them when a user explicitly asks you to. Take into consideration chat context and why a user is asking you to run one before you do.\n\nFunction results will be displayed as a system message. They will appear like so: [FUNCTION: function_name - result message]';
 
     prompt +=
-      'You will see the result as a system message.\nNever display the function result message to the user.\n';
+      'You can run functions with the following syntax:\n{{functionName(param1="value1" param2="value2")}}';
 
     prompt += 'Available functions:\n';
 
