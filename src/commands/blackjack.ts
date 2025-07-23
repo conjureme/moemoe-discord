@@ -196,7 +196,9 @@ setInterval(
 
 function createGameEmbed(
   game: BlackjackGame,
-  currency: { emoji: string; name: string }
+  currency: { emoji: string; name: string },
+  username: string,
+  avatarUrl: string
 ): EmbedBuilder {
   const playerValue = blackjackManager.calculateHandValue(game.playerHand);
   const dealerValue = blackjackManager.calculateHandValue(game.dealerHand);
@@ -218,7 +220,11 @@ function createGameEmbed(
         value: blackjackManager.formatHand(game.playerHand),
         inline: false,
       }
-    );
+    )
+    .setFooter({
+      text: username,
+      iconURL: avatarUrl,
+    });
 
   if (game.state === 'finished') {
     let resultText = '';
@@ -241,6 +247,10 @@ function createGameEmbed(
         break;
     }
     embed.setDescription(resultText);
+  } else {
+    embed.setDescription(
+      `bet: ${currency.emoji} **${game.bet.toLocaleString()} ${currency.name}**`
+    );
   }
 
   return embed;
@@ -329,7 +339,12 @@ async function handleGameInteraction(
       }
     }
 
-    const embed = createGameEmbed(game, currency);
+    const embed = createGameEmbed(
+      game,
+      currency,
+      i.user.username,
+      i.user.displayAvatarURL()
+    );
     const components = game.state === 'playing' ? createButtons() : [];
 
     await i.update({ embeds: [embed], components });
@@ -359,9 +374,15 @@ async function handleGameInteraction(
         );
       }
 
-      const embed = createGameEmbed(game, currency);
+      const embed = createGameEmbed(
+        game,
+        currency,
+        interaction.user.username,
+        interaction.user.displayAvatarURL()
+      );
       embed.setFooter({
-        text: `${embed.data.footer?.text} | game timed out`,
+        text: `${interaction.user.username} | game timed out`,
+        iconURL: interaction.user.displayAvatarURL(),
       });
 
       await interaction.editReply({ embeds: [embed], components: [] });
@@ -469,7 +490,12 @@ const blackjack: Command = {
         }
       }
 
-      const embed = createGameEmbed(game, currency);
+      const embed = createGameEmbed(
+        game,
+        currency,
+        interaction.user.username,
+        interaction.user.displayAvatarURL()
+      );
       const components = game.state === 'playing' ? createButtons() : [];
 
       await interaction.reply({ embeds: [embed], components });
