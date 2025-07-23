@@ -226,32 +226,33 @@ function createGameEmbed(
       iconURL: avatarUrl,
     });
 
+  let description = `bet: ${currency.emoji} **${game.bet.toLocaleString()} ${currency.name}**`;
+
   if (game.state === 'finished') {
     let resultText = '';
     switch (game.result) {
       case 'blackjack':
-        resultText = `**BLACKJACK!** you won ${currency.emoji} **${Math.floor(
+        resultText = `\n\n**BLACKJACK!** you won ${currency.emoji} **${Math.floor(
           game.bet * 1.5
         ).toLocaleString()} ${currency.name}**!`;
         break;
       case 'win':
-        resultText = `**you won!** +${currency.emoji} **${game.bet.toLocaleString()} ${
+        resultText = `\n\n**you won!** +${currency.emoji} **${game.bet.toLocaleString()} ${
           currency.name
         }**`;
         break;
       case 'lose':
-        resultText = playerValue > 21 ? '**bust!** you lost!' : '**you lost!**';
+        resultText =
+          playerValue > 21 ? '\n\n**bust!** you lost!' : '\n\n**you lost!**';
         break;
       case 'push':
-        resultText = `**push!** bet returned`;
+        resultText = `\n\n**push!** bet returned`;
         break;
     }
-    embed.setDescription(resultText);
-  } else {
-    embed.setDescription(
-      `bet: ${currency.emoji} **${game.bet.toLocaleString()} ${currency.name}**`
-    );
+    description += resultText;
   }
+
+  embed.setDescription(description);
 
   return embed;
 }
