@@ -7,6 +7,7 @@ import {
   NoSubscriberBehavior,
 } from '@discordjs/voice';
 
+import { VoiceCaptureService } from './VoiceCaptureService';
 import { logger } from '../../utils/logger';
 
 interface VoiceConnectionInfo {
@@ -14,14 +15,17 @@ interface VoiceConnectionInfo {
   channel: VoiceChannel | StageChannel;
   audioPlayer: AudioPlayer;
   joinedAt: Date;
+  captureEnabled: boolean;
+  listeningTo: Set<string>; // user IDs
 }
 
 export class VoiceConnectionManager {
   private static instance: VoiceConnectionManager;
   private connections: Map<string, VoiceConnectionInfo> = new Map();
+  private voiceCapture: VoiceCaptureService;
 
   private constructor() {
-    // singleton
+    this.voiceCapture = VoiceCaptureService.getInstance();
   }
 
   public static getInstance(): VoiceConnectionManager {
@@ -63,9 +67,66 @@ export class VoiceConnectionManager {
       channel,
       audioPlayer,
       joinedAt: new Date(),
+      captureEnabled: false,
+      listeningTo: new Set(),
     });
 
     logger.debug(`stored voice connection for guild ${guildId}`);
+  }
+
+  startListeningToUser(guildId: string, userId: string): boolean {
+    const info = this.connections.get(guildId);
+    if (!info) {
+      logger.warn(`no connection found for guild ${guildId}`);
+      return false;
+    }
+
+    if (info.listeningTo.has(userId)) {
+      logger.debug(`already listening to user ${userId}`);
+      return true;
+    }
+
+    this.voiceCapture.startListening(info.connection, userId);
+    info.listeningTo.add(userId);
+    info.captureEnabled = true;
+
+    logger.info(`started voice capture for user ${userId} in guild ${guildId}`);
+    return true;
+  }
+
+  stopListeningToUser(guildId: string, userId: string): boolean {
+    const info = this.connections.get(guildId);
+    if (!info) {
+      return false;
+    }
+
+    if (!info.listeningTo.has(userId)) {
+      return false;
+    }
+
+    this.voiceCapture.stopListening(userId);
+    info.listeningTo.delete(userId);
+
+    if (info.listeningTo.size === 0) {
+      info.captureEnabled = false;
+    }
+
+    logger.info(`stopped voice capture for user ${userId} in guild ${guildId}`);
+    return true;
+  }
+
+  stopAllListening(guildId: string): void {
+    const info = this.connections.get(guildId);
+    if (!info) return;
+
+    for (const userId of info.listeningTo) {
+      this.voiceCapture.stopListening(userId);
+    }
+
+    info.listeningTo.clear();
+    info.captureEnabled = false;
+
+    logger.info(`stopped all voice capture in guild ${guildId}`);
   }
 
   getConnection(guildId: string): VoiceConnectionInfo | undefined {
@@ -75,6 +136,8 @@ export class VoiceConnectionManager {
   removeConnection(guildId: string): void {
     const info = this.connections.get(guildId);
     if (info) {
+      this.stopAllListening(guildId);
+
       info.audioPlayer.stop();
       info.connection.destroy();
       this.connections.delete(guildId);
@@ -94,13 +157,25 @@ export class VoiceConnectionManager {
     return this.connections.get(guildId)?.channel;
   }
 
+  isListeningToUser(guildId: string, userId: string): boolean {
+    const info = this.connections.get(guildId);
+    return info ? info.listeningTo.has(userId) : false;
+  }
+
+  getListeningUsers(guildId: string): string[] {
+    const info = this.connections.get(guildId);
+    return info ? Array.from(info.listeningTo) : [];
+  }
+
   // cleanup all connections
   cleanup(): void {
     for (const [guildId, info] of this.connections) {
+      this.stopAllListening(guildId);
       info.audioPlayer.stop();
       info.connection.destroy();
     }
     this.connections.clear();
+    this.voiceCapture.cleanup();
     logger.debug('cleaned up all voice connections');
   }
 
@@ -111,6 +186,8 @@ export class VoiceConnectionManager {
       channelName: string;
       memberCount: number;
       duration: number;
+      captureEnabled: boolean;
+      listeningToCount: number;
     }>;
   } {
     const connections: Array<{
@@ -118,6 +195,8 @@ export class VoiceConnectionManager {
       channelName: string;
       memberCount: number;
       duration: number;
+      captureEnabled: boolean;
+      listeningToCount: number;
     }> = [];
     const now = new Date();
 
@@ -127,6 +206,8 @@ export class VoiceConnectionManager {
         channelName: info.channel.name,
         memberCount: info.channel.members.size,
         duration: now.getTime() - info.joinedAt.getTime(),
+        captureEnabled: info.captureEnabled,
+        listeningToCount: info.listeningTo.size,
       });
     }
 
