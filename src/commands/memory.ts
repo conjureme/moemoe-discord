@@ -29,6 +29,24 @@ const memory: Command = {
       subcommand
         .setName('info')
         .setDescription('show memory info for this channel')
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName('type')
+        .setDescription('set memory storage type for this server')
+        .addStringOption((option) =>
+          option
+            .setName('mode')
+            .setDescription('how to store memories')
+            .setRequired(true)
+            .addChoices(
+              {
+                name: 'channel - separate memory per channel',
+                value: 'channel',
+              },
+              { name: 'guild - shared memory across server', value: 'guild' }
+            )
+        )
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -169,6 +187,75 @@ const memory: Command = {
             embeds: [embed],
             flags: ['Ephemeral'],
           });
+          break;
+        }
+
+        case 'type': {
+          // check permissions - only admins should change this
+          if (interaction.channel?.type === ChannelType.DM) {
+            await interaction.reply({
+              content: 'memory type can only be configured in servers',
+              flags: ['Ephemeral'],
+            });
+            return;
+          }
+
+          const member = interaction.member;
+          if (!member || typeof member.permissions === 'string') {
+            await interaction.reply({
+              content: 'unable to verify permissions',
+              flags: ['Ephemeral'],
+            });
+            return;
+          }
+
+          if (!member.permissions.has(PermissionFlagsBits.ManageGuild)) {
+            await interaction.reply({
+              content:
+                'you need the "manage server" permission to change memory type',
+              flags: ['Ephemeral'],
+            });
+            return;
+          }
+
+          const mode = interaction.options.getString('mode', true) as
+            | 'channel'
+            | 'guild';
+          const guildId = interaction.guildId!;
+          const guildName = interaction.guild!.name;
+
+          const previousMode = memoryService.getGuildMemoryType(guildId);
+
+          if (previousMode === mode) {
+            await interaction.reply({
+              content: `memory type is already set to **${mode}** mode`,
+              flags: ['Ephemeral'],
+            });
+            return;
+          }
+
+          memoryService.setGuildMemoryType(guildId, mode);
+
+          const embed = {
+            title: 'memory type updated',
+            description: `${guildName} now uses **${mode}** memory mode`,
+            fields: [
+              {
+                name: 'what this means',
+                value:
+                  mode === 'guild'
+                    ? 'i will remember conversations across all channels in this server'
+                    : 'i will keep separate memories for each channel',
+                inline: false,
+              },
+            ],
+            color: 0x5865f2,
+            footer: {
+              text: 'existing memories are preserved',
+            },
+          };
+
+          await interaction.reply({ embeds: [embed] });
           break;
         }
       }

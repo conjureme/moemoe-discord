@@ -25,7 +25,7 @@ export interface MessageAttachment {
 }
 
 export interface ChannelMemory {
-  channelId: string;
+  channelId: string | null; // can be null for guild-wide storage
   guildId: string | null;
   messages: StoredMessage[];
   chat_metadata?: {
@@ -35,6 +35,7 @@ export interface ChannelMemory {
     world?: string;
     character?: string;
     tags?: string[];
+    memoryType?: 'channel' | 'guild'; // track the type
   };
 }
 
@@ -53,4 +54,11 @@ export interface StoredMessage {
   is_user?: boolean;
   is_name?: boolean;
   extra?: Record<string, any>;
+  sourceChannel?: string;
+}
+
+export interface GuildMemorySettings {
+  guildId: string;
+  memoryType: 'channel' | 'guild';
+  lastModified: string;
 }

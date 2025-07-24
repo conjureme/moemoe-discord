@@ -1,7 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { MemoryMessage, ChannelMemory, StoredMessage } from './types';
+import {
+  MemoryMessage,
+  ChannelMemory,
+  StoredMessage,
+  GuildMemorySettings,
+} from './types';
 import { ConfigService } from '../config/ConfigService';
 import { logger } from '../../utils/logger';
 
@@ -15,11 +20,15 @@ export class MemoryService {
   private configService: ConfigService;
   private memoryCache: Map<string, ChannelMemory> = new Map();
   private fileWatchers: Map<string, fs.FSWatcher> = new Map();
+  private guildSettings: Map<string, GuildMemorySettings> = new Map();
+  private settingsPath: string;
 
   constructor(configService: ConfigService) {
     this.configService = configService;
     this.memoryPath = path.join(process.cwd(), 'data', 'memory');
+    this.settingsPath = path.join(process.cwd(), 'data', 'memory', 'settings');
     this.ensureDirectories();
+    this.loadGuildSettings();
     this.loadAllMemories();
     this.setupFileWatchers();
   }
@@ -29,6 +38,7 @@ export class MemoryService {
       this.memoryPath,
       path.join(this.memoryPath, 'guilds'),
       path.join(this.memoryPath, 'dm'),
+      this.settingsPath,
     ];
 
     for (const dir of dirs) {
@@ -37,6 +47,64 @@ export class MemoryService {
         logger.debug(`created directory: ${dir}`);
       }
     }
+  }
+
+  private loadGuildSettings(): void {
+    try {
+      if (fs.existsSync(this.settingsPath)) {
+        const files = fs
+          .readdirSync(this.settingsPath)
+          .filter((f) => f.endsWith('.json'));
+
+        for (const file of files) {
+          const guildId = file.replace('.json', '');
+          const filePath = path.join(this.settingsPath, file);
+          const settings = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          this.guildSettings.set(guildId, settings);
+        }
+      }
+
+      logger.info(`loaded settings for ${this.guildSettings.size} guilds`);
+    } catch (error) {
+      logger.error('error loading guild settings:', error);
+    }
+  }
+
+  private saveGuildSettings(guildId: string): void {
+    const settings = this.guildSettings.get(guildId);
+    if (!settings) return;
+
+    try {
+      const filePath = path.join(this.settingsPath, `${guildId}.json`);
+      fs.writeFileSync(filePath, JSON.stringify(settings, null, 2));
+    } catch (error) {
+      logger.error(`error saving guild settings for ${guildId}:`, error);
+    }
+  }
+
+  getGuildMemoryType(guildId: string): 'channel' | 'guild' {
+    const settings = this.guildSettings.get(guildId);
+    return settings?.memoryType || 'channel'; // defaults to channel mode
+  }
+
+  setGuildMemoryType(guildId: string, type: 'channel' | 'guild'): void {
+    let settings = this.guildSettings.get(guildId);
+
+    if (!settings) {
+      settings = {
+        guildId,
+        memoryType: type,
+        lastModified: new Date().toISOString(),
+      };
+    } else {
+      settings.memoryType = type;
+      settings.lastModified = new Date().toISOString();
+    }
+
+    this.guildSettings.set(guildId, settings);
+    this.saveGuildSettings(guildId);
+
+    logger.info(`set memory type for guild ${guildId} to ${type}`);
   }
 
   private setupFileWatchers(): void {
@@ -99,19 +167,28 @@ export class MemoryService {
 
   private getMemoryFilePath(channelId: string, guildId: string | null): string {
     if (guildId) {
+      const memoryType = this.getGuildMemoryType(guildId);
       const guildDir = path.join(this.memoryPath, 'guilds', guildId);
+
       if (!fs.existsSync(guildDir)) {
         fs.mkdirSync(guildDir, { recursive: true });
-        // watch new guild directory
         this.watchGuildDirectory(guildId);
       }
-      return path.join(guildDir, `${channelId}.json`);
+
+      if (memoryType === 'guild') {
+        return path.join(guildDir, '_guild_memory.json');
+      } else {
+        return path.join(guildDir, `${channelId}.json`);
+      }
     } else {
       return path.join(this.memoryPath, 'dm', `${channelId}.json`);
     }
   }
 
   private getCacheKey(channelId: string, guildId: string | null): string {
+    if (guildId && this.getGuildMemoryType(guildId) === 'guild') {
+      return `guild:${guildId}`;
+    }
     return guildId ? `${guildId}:${channelId}` : `dm:${channelId}`;
   }
 
@@ -198,14 +275,18 @@ export class MemoryService {
     let memory = this.memoryCache.get(cacheKey);
 
     if (!memory) {
+      const isGuildWide =
+        message.guildId && this.getGuildMemoryType(message.guildId) === 'guild';
+
       memory = {
-        channelId: message.channelId,
+        channelId: isGuildWide ? null : message.channelId,
         guildId: message.guildId,
         messages: [],
         chat_metadata: {
           created: new Date().toISOString(),
           modified: new Date().toISOString(),
           character: this.configService.getBotConfig().name,
+          memoryType: isGuildWide ? 'guild' : 'channel',
         },
       };
       this.memoryCache.set(cacheKey, memory);
@@ -226,6 +307,7 @@ export class MemoryService {
       swipe_id: 0,
       swipes: [message.content],
       extra: message.extra,
+      sourceChannel: message.channelId,
     };
 
     memory.messages.push(storedMessage);
@@ -234,7 +316,6 @@ export class MemoryService {
       memory.chat_metadata.modified = new Date().toISOString();
     }
 
-    // trim old messages if exceeding limit
     const config = this.configService.getMemoryConfig();
     if (memory.messages.length > config.maxMessagesPerChannel) {
       const excess = memory.messages.length - config.maxMessagesPerChannel;
@@ -336,46 +417,44 @@ export class MemoryService {
   }
 
   private estimateTokens(text: string): number {
-    // rough estimate: 1 token per 4 characters
     return Math.ceil(text.length / 4);
   }
 
   async clearChannel(channelId: string, guildId: string | null): Promise<void> {
     const cacheKey = this.getCacheKey(channelId, guildId);
 
-    // create empty memory to ensure clean state
+    if (guildId && this.getGuildMemoryType(guildId) === 'guild') {
+      // if in guild mode, this clears the entire guild's memory
+      logger.warn(
+        `clearing entire guild memory for ${guildId} (guild-wide mode)`
+      );
+    }
+
     const emptyMemory: ChannelMemory = {
-      channelId: channelId,
+      channelId:
+        guildId && this.getGuildMemoryType(guildId) === 'guild'
+          ? null
+          : channelId,
       guildId: guildId,
       messages: [],
     };
 
-    // set empty memory in cache to prevent reload issues
     this.memoryCache.set(cacheKey, emptyMemory);
 
     const filePath = this.getMemoryFilePath(channelId, guildId);
 
     try {
       if (fs.existsSync(filePath)) {
-        // synchronously delete to ensure it's gone
         fs.unlinkSync(filePath);
-        logger.info(`deleted memory file for channel ${channelId}`);
+        logger.info(
+          `deleted memory file for ${guildId ? 'guild' : 'channel'} ${channelId}`
+        );
       }
 
-      if (fs.existsSync(filePath)) {
-        logger.error(`failed to delete memory file at ${filePath}`);
-        // try again with a small delay
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        if (fs.existsSync(filePath)) {
-          fs.rmSync(filePath, { force: true });
-        }
-      }
-
-      // remove from cache after ensuring file is deleted
       this.memoryCache.delete(cacheKey);
-      logger.info(`cleared memory for channel ${channelId}`);
+      logger.info(`cleared memory for ${cacheKey}`);
     } catch (error) {
-      logger.error(`error clearing memory for channel ${channelId}:`, error);
+      logger.error(`error clearing memory for ${cacheKey}:`, error);
       this.memoryCache.delete(cacheKey);
     }
   }
