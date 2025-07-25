@@ -66,7 +66,7 @@ export class VoiceConnectionManager {
       channel,
       audioPlayer,
       joinedAt: new Date(),
-      captureEnabled: false,
+      captureEnabled: true,
       listeningTo: new Set(),
     });
 

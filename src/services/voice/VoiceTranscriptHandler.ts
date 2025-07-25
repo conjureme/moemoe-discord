@@ -42,6 +42,7 @@ export class VoiceTranscriptHandler {
 
       const services = this.getServices();
 
+      // needs to use message format
       const formattedContent = `[${member.user.username}|${userId}]: ${transcribedText}`;
 
       await services.memory.addMessage({

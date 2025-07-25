@@ -159,8 +159,8 @@ export class JoinCallFunction extends BaseFunction {
         channelId: targetChannel.id,
         guildId: targetChannel.guild.id,
         adapterCreator: targetChannel.guild.voiceAdapterCreator,
-        selfDeaf: false, // don't self-deafen for future voice capture
-        selfMute: false, // don't self-mute for future TTS playback
+        selfDeaf: false,
+        selfMute: false,
       });
 
       // wait for connection to be ready
@@ -174,13 +174,23 @@ export class JoinCallFunction extends BaseFunction {
         };
       }
 
-      // store connection info for future use
       const voiceManager = VoiceConnectionManager.getInstance();
       voiceManager.setConnection(
         targetChannel.guild.id,
         connection,
         targetChannel
       );
+
+      const membersInChannel = targetChannel.members.filter(
+        (member) => !member.user.bot
+      );
+
+      for (const [memberId, member] of membersInChannel) {
+        voiceManager.startListeningToUser(targetChannel.guild.id, memberId);
+        logger.info(
+          `automatically started listening to ${member.user.username} in ${targetChannel.name}`
+        );
+      }
 
       logger.info(
         `joined voice channel ${targetChannel.name} (${targetChannel.id}) in ${targetChannel.guild.name}`
