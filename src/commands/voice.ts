@@ -190,7 +190,13 @@ const voice: Command = {
           if (listeningUsers.length > 0) {
             embed.addFields({
               name: 'currently listening to',
-              value: `${listeningUsers.length} user${listeningUsers.length > 1 ? 's' : ''}`,
+              value: listeningUsers
+                .map((userId) => {
+                  const guild = interaction.guild!;
+                  const member = guild.members.cache.get(userId);
+                  return member ? member.user.username : `user ${userId}`;
+                })
+                .join(', '),
               inline: false,
             });
           }

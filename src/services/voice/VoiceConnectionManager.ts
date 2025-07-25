@@ -41,16 +41,15 @@ export class VoiceConnectionManager {
     connection: VoiceConnection,
     channel: VoiceChannel | StageChannel
   ): void {
-    // create audio player for this connection
     const audioPlayer = createAudioPlayer({
       behaviors: {
-        noSubscriber: NoSubscriberBehavior.Pause,
+        noSubscriber: NoSubscriberBehavior.Play,
       },
     });
 
+    // subscribe immediately to prevent issues
     connection.subscribe(audioPlayer);
 
-    // handle connection state changes
     connection.on('stateChange', (oldState, newState) => {
       logger.debug(
         `voice connection state change in ${guildId}: ${oldState.status} -> ${newState.status}`

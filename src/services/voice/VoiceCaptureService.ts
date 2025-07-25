@@ -1,19 +1,10 @@
-import {
-  VoiceConnection,
-  EndBehaviorType,
-  VoiceReceiver,
-  AudioReceiveStream,
-} from '@discordjs/voice';
+import { VoiceConnection, EndBehaviorType } from '@discordjs/voice';
 
 import prism from 'prism-media';
+import { VoiceTranscriptHandler } from './VoiceTranscriptHandler';
+import { Client } from 'discord.js';
 
 import { logger } from '../../utils/logger';
-
-// may use
-import * as fs from 'fs';
-import * as path from 'path';
-import { pipeline } from 'stream';
-import { Readable, Transform, PassThrough } from 'stream';
 
 interface TranscriptionResult {
   text: string;
@@ -40,10 +31,16 @@ export class VoiceCaptureService {
   private userBuffers: Map<string, UserAudioBuffer> = new Map();
   private activeListeners: Map<string, ActiveListener> = new Map();
   private apiUrl: string;
-  private silenceTimeout: number = 2000;
-  private minAudioLength: number = 500;
+  private silenceTimeout: number = 500;
+  private minAudioLength: number = 200;
   private sampleRate: number = 48000;
   private channels: number = 2;
+  private transcriptHandler: VoiceTranscriptHandler | null = null;
+
+  public initialize(client: Client): void {
+    this.transcriptHandler = new VoiceTranscriptHandler(client);
+    logger.debug('initialized voice transcription handler');
+  }
 
   private constructor() {
     this.apiUrl = process.env.API_URL || 'http://localhost:5001';
@@ -274,9 +271,26 @@ export class VoiceCaptureService {
   }
 
   private emitTranscription(userId: string, text: string): void {
-    // this will be handled by an event emitter or callback system
-    // for now, just log
-    logger.info(`ready to process transcription from ${userId}: "${text}"`);
+    if (!this.transcriptHandler) {
+      logger.error('transcription handler not initialized');
+      return;
+    }
+
+    const listener = this.activeListeners.get(userId);
+    if (!listener) {
+      logger.error(`no active listener found for user ${userId}`);
+      return;
+    }
+
+    const guildId = listener.connection.joinConfig.guildId;
+    const channelId = listener.connection.joinConfig.channelId;
+
+    this.transcriptHandler.handleTranscription(
+      userId,
+      guildId,
+      channelId!,
+      text
+    );
   }
 
   isActivelyListening(userId: string): boolean {
