@@ -99,6 +99,8 @@ src/
 ├── services/     # core services
 │   ├── ai/       # AI providers and prompt building
 │   ├── memory/   # conversation persistence
+│   ├── voice/    # bot voice capabilities
+│   ├── economy/  # economy logic and settings
 │   └── config/   # configuration management
 ├── functions/    # bot action implementations
 └── utils/        # shared utilities
@@ -149,7 +151,6 @@ npm run deploy -- --guild GUILD_ID
 - [x] function calling
 - [x] word filtering
 - [x] image understanding (for vision models)
-
 - [x] currency system
 - [x] minigames/gambling
 
