@@ -150,6 +150,9 @@ npm run deploy -- --guild GUILD_ID
 - [x] word filtering
 - [x] image understanding (for vision models)
 
+- [x] currency system
+- [x] minigames/gambling
+
 ### in progress
 
 - [ ] voice channel audio support
@@ -158,8 +161,6 @@ npm run deploy -- --guild GUILD_ID
 
 **discord-bot specific:**
 
-- [ ] currency system
-- [ ] minigames/gambling
 - [ ] autoresponder
 
 ### planned
