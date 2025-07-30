@@ -9,6 +9,7 @@ import { SendChannelMessageFunction } from './implementations/SendChannelMessage
 import { GetUserActivityFunction } from './implementations/GetUserActivity';
 import { JoinCallFunction } from './implementations/JoinCall';
 import { LeaveCallFunction } from './implementations/LeaveCall';
+import { SingSongFunction } from './implementations/SingSong';
 
 export interface FunctionCall {
   name: string;
@@ -31,6 +32,7 @@ export class FunctionRegistry {
     this.register(new GetUserActivityFunction());
     this.register(new JoinCallFunction());
     this.register(new LeaveCallFunction());
+    this.register(new SingSongFunction());
   }
 
   register(func: BaseFunction): void {
