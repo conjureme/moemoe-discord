@@ -7,6 +7,32 @@ const interactionCreate: Event = {
   once: false,
 
   async execute(interaction: Interaction) {
+    if (interaction.isAutocomplete()) {
+      const command = interaction.client.commands.get(interaction.commandName);
+
+      if (!command) {
+        logger.warn(
+          `no command found for autocomplete: ${interaction.commandName}`
+        );
+        return;
+      }
+
+      if (
+        'autocomplete' in command &&
+        typeof command.autocomplete === 'function'
+      ) {
+        try {
+          await command.autocomplete(interaction);
+        } catch (error) {
+          logger.error(
+            `error handling autocomplete for ${interaction.commandName}:`,
+            error
+          );
+        }
+      }
+      return;
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     const command = interaction.client.commands.get(interaction.commandName);
