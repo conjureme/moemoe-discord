@@ -203,10 +203,6 @@ export class SingSongFunction extends BaseFunction {
   }
 
   formatForPrompt(): string {
-    return `sing_song(song_name?: string) - play a song from the songs folder
-    
-examples:
-- sing_song() - list available songs
-- sing_song(song_name="song_name") - play song_name.mp3`;
+    return `sing_song(song_name?: string) - play a song from the songs folder`;
   }
 }
