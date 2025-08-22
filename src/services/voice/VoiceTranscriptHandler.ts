@@ -14,12 +14,10 @@ import { Readable } from 'stream';
 export class VoiceTranscriptHandler {
   private client: Client;
   private ttsApiUrl: string;
-  private rvcApiUrl: string;
 
   constructor(client: Client) {
     this.client = client;
     this.ttsApiUrl = process.env.TTS_API_URL || 'http://localhost:8880';
-    this.rvcApiUrl = process.env.RVC_API_URL || 'http://localhost:5001';
   }
 
   async handleTranscription(

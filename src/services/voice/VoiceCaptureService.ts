@@ -31,8 +31,8 @@ export class VoiceCaptureService {
   private userBuffers: Map<string, UserAudioBuffer> = new Map();
   private activeListeners: Map<string, ActiveListener> = new Map();
   private apiUrl: string;
-  private silenceTimeout: number = 500;
-  private minAudioLength: number = 200;
+  private silenceTimeout: number = 300;
+  private minAudioLength: number = 50;
   private sampleRate: number = 48000;
   private channels: number = 2;
   private transcriptHandler: VoiceTranscriptHandler | null = null;
