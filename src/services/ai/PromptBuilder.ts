@@ -54,27 +54,54 @@ export class PromptBuilder {
       ? this.functionRegistry.generatePromptSection()
       : null;
 
-    if (functionPrompt && aiConfig.instruct.system_suffix) {
-      const systemSuffix = aiConfig.instruct.system_suffix.trim();
+    if (functionPrompt) {
+      const closingSuffix = [
+        '[/SYSTEM_PROMPT]',
+        '</system>',
+        '<|im_end|>',
+        '<|end|>',
+        '</s>',
+        '[/INST]',
+      ];
 
-      const lastIndex = storyString.lastIndexOf(systemSuffix);
+      let injected = false;
 
-      if (lastIndex !== -1) {
-        // inject function prompt before the system suffix
-        storyString =
-          storyString.slice(0, lastIndex) +
-          '\n' +
-          functionPrompt +
-          '\n' +
-          storyString.slice(lastIndex);
-      } else {
-        logger.warn(
-          'system suffix not found in story string, appending function prompt'
-        );
-        storyString += '\n' + functionPrompt;
+      for (const suffix of closingSuffix) {
+        if (storyString.includes(suffix)) {
+          const lastIndex = storyString.lastIndexOf(suffix);
+
+          // inject function info before the closing suffic
+          storyString =
+            storyString.slice(0, lastIndex) +
+            '\n' +
+            functionPrompt +
+            '\n' +
+            storyString.slice(lastIndex);
+
+          injected = true;
+          logger.debug(`injected function prompt before ${suffix}`);
+          break;
+        }
       }
-    } else if (functionPrompt) {
-      storyString += '\n' + functionPrompt;
+
+      if (!injected && aiConfig.instruct.system_suffix) {
+        const systemSuffix = aiConfig.instruct.system_suffix;
+
+        if (storyString.endsWith(systemSuffix)) {
+          const withoutSuffix = storyString.slice(0, -systemSuffix.length);
+          storyString =
+            withoutSuffix + '\n' + functionPrompt + '\n' + systemSuffix;
+          injected = true;
+        }
+      }
+
+      // fallback: just append at the end
+      if (!injected) {
+        storyString += '\n' + functionPrompt;
+        logger.debug(
+          'appended function prompt at end (no closing pattern found)'
+        );
+      }
     }
 
     logger.debug(storyString);

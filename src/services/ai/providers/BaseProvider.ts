@@ -37,22 +37,28 @@ export abstract class BaseProvider {
 
     for (const message of context.messages) {
       if (message.role === 'user') {
-        parts.push(
-          `${instruct.input_sequence}${message.content}${instruct.input_suffix}`
-        );
+        const sequence = instruct.wrap
+          ? `${instruct.input_sequence}\n`
+          : instruct.input_sequence;
+        parts.push(`${sequence}${message.content}${instruct.input_suffix}`);
       } else if (message.role === 'assistant') {
-        parts.push(
-          `${instruct.output_sequence}${message.content}${instruct.output_suffix}`
-        );
+        const sequence = instruct.wrap
+          ? `${instruct.output_sequence}\n`
+          : instruct.output_sequence;
+        parts.push(`${sequence}${message.content}${instruct.output_suffix}`);
       } else if (message.role === 'system') {
-        parts.push(
-          `${instruct.system_sequence}${message.content}${instruct.system_suffix}`
-        );
+        const sequence = instruct.wrap
+          ? `${instruct.system_sequence}\n`
+          : instruct.system_sequence;
+        parts.push(`${sequence}${message.content}${instruct.system_suffix}`);
       }
     }
 
     // add assistant prefix for generation
-    parts.push(instruct.output_sequence);
+    const assistantPrefix = instruct.wrap
+      ? `${instruct.output_sequence}\n`
+      : instruct.output_sequence;
+    parts.push(assistantPrefix);
 
     return parts.join('');
   }
