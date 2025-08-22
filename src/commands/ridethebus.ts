@@ -25,6 +25,7 @@ interface RideTheBusGame {
   guildId: string;
   bet: number;
   cards: Card[];
+  deck: Card[];
   currentStage: 1 | 2 | 3 | 4 | 'finished';
   choices: string[];
   result?: 'win' | 'lose' | 'cashout';
@@ -38,12 +39,51 @@ class RideTheBusManager {
     return `${guildId}:${userId}`;
   }
 
+  private createDeck(): Card[] {
+    const suits: Array<'♠' | '♥' | '♦' | '♣'> = ['♠', '♥', '♦', '♣'];
+    const ranks = [
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      '10',
+      'J',
+      'Q',
+      'K',
+      'A',
+    ];
+    const deck: Card[] = [];
+
+    for (const suit of suits) {
+      for (let i = 0; i < ranks.length; i++) {
+        const rank = ranks[i];
+        const value = i + 2;
+        const color = suit === '♥' || suit === '♦' ? 'red' : 'black';
+        deck.push({ suit, rank, value, color });
+      }
+    }
+
+    return deck;
+  }
+
   createGame(userId: string, guildId: string, bet: number): RideTheBusGame {
+    const deck = this.createDeck();
+    // shuffle the deck
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+
     const game: RideTheBusGame = {
       userId,
       guildId,
       bet,
       cards: [],
+      deck,
       currentStage: 1,
       choices: [],
     };
@@ -64,36 +104,15 @@ class RideTheBusManager {
     this.games.delete(key);
   }
 
-  drawCard(): Card {
-    const suits: Array<'♠' | '♥' | '♦' | '♣'> = ['♠', '♥', '♦', '♣'];
-    const ranks = [
-      '2',
-      '3',
-      '4',
-      '5',
-      '6',
-      '7',
-      '8',
-      '9',
-      '10',
-      'J',
-      'Q',
-      'K',
-      'A',
-    ];
-
-    const suit = suits[Math.floor(Math.random() * suits.length)];
-    const rankIndex = Math.floor(Math.random() * ranks.length);
-    const rank = ranks[rankIndex];
-
-    let value = rankIndex + 2;
-    const color = suit === '♥' || suit === '♦' ? 'red' : 'black';
-
-    return { suit, rank, value, color };
+  drawCard(game: RideTheBusGame): Card {
+    if (game.deck.length === 0) {
+      throw new Error('no cards left in deck');
+    }
+    return game.deck.pop()!;
   }
 
   processChoice(game: RideTheBusGame, choice: string): boolean {
-    const card = this.drawCard();
+    const card = this.drawCard(game);
     game.cards.push(card);
     game.choices.push(choice);
 
@@ -107,9 +126,9 @@ class RideTheBusManager {
       case 2:
         const firstCard = game.cards[0];
         if (choice === 'higher') {
-          correct = card.value > firstCard.value;
+          correct = card.value >= firstCard.value;
         } else {
-          correct = card.value < firstCard.value;
+          correct = card.value <= firstCard.value;
         }
         break;
 
@@ -136,19 +155,17 @@ class RideTheBusManager {
 
     if (game.currentStage === 1) {
       game.currentMultiplier = 2;
+      game.currentStage = 2;
     } else if (game.currentStage === 2) {
       game.currentMultiplier = 3;
+      game.currentStage = 3;
     } else if (game.currentStage === 3) {
       game.currentMultiplier = 5;
+      game.currentStage = 4;
     } else if (game.currentStage === 4) {
       game.currentMultiplier = 20;
       game.result = 'win';
       game.currentStage = 'finished';
-      return correct;
-    }
-
-    if (game.currentStage !== 4) {
-      game.currentStage = ((game.currentStage as number) + 1) as 1 | 2 | 3 | 4;
     }
 
     return correct;
