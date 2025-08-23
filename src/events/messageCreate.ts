@@ -15,6 +15,8 @@ const messageCreate: Event = {
   async execute(message: Message) {
     if (message.author.bot) return;
 
+    await checkAutoresponders(message);
+
     const shouldProcess =
       message.mentions.has(message.client.user!) ||
       message.channel.type === ChannelType.DM;
@@ -29,6 +31,128 @@ const messageCreate: Event = {
     }
   },
 };
+
+// will think of a more graceful solutionf or this later
+async function checkAutoresponders(message: Message): Promise<void> {
+  if (message.channel.type === ChannelType.DM) return;
+
+  // moemoe won't autorespond to mentions since AI will be responding anyway
+  if (message.mentions.has(message.client.user!)) return;
+
+  const autoresponderService = serviceManager.getAutoresponderService();
+  const matchedAutoresponder = autoresponderService.checkMessage(
+    message.guildId!,
+    message.content
+  );
+
+  // placeholders ============================================================
+  if (matchedAutoresponder) {
+    try {
+      let reply = matchedAutoresponder.reply;
+
+      // user placeholders
+      reply = reply.replace(/\{user\}/gi, message.author.toString());
+      reply = reply.replace(
+        /\{user_tag\}/gi,
+        `${message.author.username}#${message.author.discriminator}`
+      );
+      reply = reply.replace(/\{user_name\}/gi, message.author.username);
+      reply = reply.replace(/\{user_id\}/gi, message.author.id);
+      reply = reply.replace(
+        /\{user_nick\}/gi,
+        message.member?.nickname || message.author.username
+      );
+      reply = reply.replace(
+        /\{user_displaycolor\}/gi,
+        message.member?.displayHexColor || '#000000'
+      );
+
+      // user dates
+      if (message.member) {
+        const joinTimestamp = Math.floor(
+          message.member.joinedTimestamp! / 1000
+        );
+        reply = reply.replace(/\{user_joindate\}/gi, `<t:${joinTimestamp}:F>`);
+
+        if (message.member.premiumSince) {
+          const boostTimestamp = Math.floor(
+            message.member.premiumSinceTimestamp! / 1000
+          );
+          reply = reply.replace(
+            /\{user_boostsince\}/gi,
+            `<t:${boostTimestamp}:F>`
+          );
+        } else {
+          reply = reply.replace(/\{user_boostsince\}/gi, 'never');
+        }
+      }
+
+      const createTimestamp = Math.floor(
+        message.author.createdTimestamp / 1000
+      );
+      reply = reply.replace(
+        /\{user_createdate\}/gi,
+        `<t:${createTimestamp}:F>`
+      );
+
+      // server placeholders
+      reply = reply.replace(
+        /\{server\}/gi,
+        message.guild?.name || 'this server'
+      );
+      reply = reply.replace(
+        /\{server_name\}/gi,
+        message.guild?.name || 'this server'
+      );
+      reply = reply.replace(/\{server_id\}/gi, message.guildId || 'unknown');
+      reply = reply.replace(
+        /\{server_membercount\}/gi,
+        message.guild?.memberCount.toString() || '0'
+      );
+
+      // economy placeholders
+      if (
+        reply.includes('{user_balance}') ||
+        reply.includes('{server_currency}')
+      ) {
+        const economyService = serviceManager.getEconomyService();
+        const userBalance = await economyService.getBalance(
+          message.guildId!,
+          message.guild!.name,
+          message.author.id
+        );
+        const guildEconomy = economyService.getGuildEconomy(message.guildId!);
+        const currency = guildEconomy?.currency || {
+          emoji: '🧀',
+          name: 'curds',
+        };
+
+        reply = reply.replace(
+          /\{user_balance\}/gi,
+          userBalance.balance.toString()
+        );
+        reply = reply.replace(
+          /\{server_currency\}/gi,
+          `${currency.emoji} ${currency.name}`
+        );
+      }
+
+      // channel placeholders
+      reply = reply.replace(/\{channel\}/gi, message.channel.toString());
+      reply = reply.replace(/\{channel_id\}/gi, message.channelId);
+
+      if ('send' in message.channel) {
+        await message.channel.send(reply);
+      }
+
+      logger.debug(
+        `triggered autoresponder "${matchedAutoresponder.trigger}" in ${message.guild?.name}`
+      );
+    } catch (error) {
+      logger.error('error sending autoresponder reply:', error);
+    }
+  }
+}
 
 async function processMessage(message: Message): Promise<void> {
   startTyping(message);

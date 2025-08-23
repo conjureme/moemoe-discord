@@ -2,6 +2,7 @@ import { ConfigService } from './config/ConfigService';
 import { MemoryService } from './memory/MemoryService';
 import { AIService } from './ai/AIService';
 import { EconomyService } from './economy/EconomyService';
+import { AutoresponderService } from './autoresponder/AutoresponderService';
 
 import { logger } from '../utils/logger';
 
@@ -11,6 +12,7 @@ class ServiceManager {
   private memoryService: MemoryService | null = null;
   private aiService: AIService | null = null;
   private economyService: EconomyService | null = null;
+  private autoresponderService: AutoresponderService | null = null;
 
   private constructor() {
     // private constructor for singleton
@@ -56,12 +58,21 @@ class ServiceManager {
     return this.economyService;
   }
 
+  public getAutoresponderService(): AutoresponderService {
+    if (!this.autoresponderService) {
+      this.autoresponderService = new AutoresponderService();
+      logger.debug('initialized AutoresponderService');
+    }
+    return this.autoresponderService;
+  }
+
   // reset services when needed
   public resetServices(): void {
     this.configService = null;
     this.memoryService = null;
     this.aiService = null;
     this.economyService = null;
+    this.autoresponderService = null;
     logger.info('reset all services');
   }
 }

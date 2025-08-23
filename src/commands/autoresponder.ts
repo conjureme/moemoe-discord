@@ -6,11 +6,8 @@ import {
 } from 'discord.js';
 
 import { Command } from '../types/discord';
+import { serviceManager } from '../services/ServiceManager';
 import { logger } from '../utils/logger';
-
-// temporary in-memory storage for autoresponders
-// will be moved to a proper service later
-const autoresponders: Map<string, Map<string, string>> = new Map();
 
 const autoresponder: Command = {
   data: new SlashCommandBuilder()
@@ -87,7 +84,10 @@ const autoresponder: Command = {
     const guildId = interaction.guildId;
     if (!guildId) return;
 
-    const guildAutoresponders = autoresponders.get(guildId);
+    const autoresponderService = serviceManager.getAutoresponderService();
+    const guildAutoresponders =
+      autoresponderService.getGuildAutoresponders(guildId);
+
     if (!guildAutoresponders || guildAutoresponders.size === 0) {
       await interaction.respond([]);
       return;
@@ -113,11 +113,7 @@ const autoresponder: Command = {
     const guildName = interaction.guild!.name;
     const guildIcon = interaction.guild!.iconURL({ size: 256 }) || undefined;
 
-    if (!autoresponders.has(guildId)) {
-      autoresponders.set(guildId, new Map());
-    }
-
-    const guildAutoresponders = autoresponders.get(guildId)!;
+    const autoresponderService = serviceManager.getAutoresponderService();
 
     try {
       switch (subcommand) {
@@ -127,7 +123,14 @@ const autoresponder: Command = {
             .toLowerCase();
           const reply = interaction.options.getString('reply', true);
 
-          if (guildAutoresponders.has(trigger)) {
+          const result = autoresponderService.createAutoresponder(
+            guildId,
+            guildName,
+            trigger,
+            reply
+          );
+
+          if (!result.success) {
             const embed = new EmbedBuilder()
               .setColor(0xfaf0e7)
               .setAuthor({
@@ -142,8 +145,6 @@ const autoresponder: Command = {
             await interaction.reply({ embeds: [embed] });
             return;
           }
-
-          guildAutoresponders.set(trigger, reply);
 
           const embed = new EmbedBuilder()
             .setColor(0xfaf0e7)
@@ -178,7 +179,12 @@ const autoresponder: Command = {
             .getString('trigger', true)
             .toLowerCase();
 
-          if (!guildAutoresponders.has(trigger)) {
+          const result = autoresponderService.removeAutoresponder(
+            guildId,
+            trigger
+          );
+
+          if (!result.success) {
             const embed = new EmbedBuilder()
               .setColor(0xfaf0e7)
               .setAuthor({
@@ -193,8 +199,6 @@ const autoresponder: Command = {
             await interaction.reply({ embeds: [embed] });
             return;
           }
-
-          guildAutoresponders.delete(trigger);
 
           const embed = new EmbedBuilder()
             .setColor(0xfaf0e7)
@@ -218,7 +222,13 @@ const autoresponder: Command = {
             .toLowerCase();
           const newReply = interaction.options.getString('reply', true);
 
-          if (!guildAutoresponders.has(trigger)) {
+          const result = autoresponderService.editAutoresponder(
+            guildId,
+            trigger,
+            newReply
+          );
+
+          if (!result.success) {
             const embed = new EmbedBuilder()
               .setColor(0xfaf0e7)
               .setAuthor({
@@ -233,9 +243,6 @@ const autoresponder: Command = {
             await interaction.reply({ embeds: [embed] });
             return;
           }
-
-          const oldReply = guildAutoresponders.get(trigger);
-          guildAutoresponders.set(trigger, newReply);
 
           const embed = new EmbedBuilder()
             .setColor(0xfaf0e7)
@@ -253,9 +260,9 @@ const autoresponder: Command = {
               {
                 name: 'old reply',
                 value:
-                  oldReply!.length > 100
-                    ? oldReply!.substring(0, 100) + '...'
-                    : oldReply!,
+                  result.oldReply!.length > 100
+                    ? result.oldReply!.substring(0, 100) + '...'
+                    : result.oldReply!,
                 inline: false,
               },
               {
@@ -280,7 +287,12 @@ const autoresponder: Command = {
 
           if (specificTrigger) {
             // show specific autoresponder
-            if (!guildAutoresponders.has(specificTrigger)) {
+            const autoresponder = autoresponderService.getAutoresponder(
+              guildId,
+              specificTrigger
+            );
+
+            if (!autoresponder) {
               const embed = new EmbedBuilder()
                 .setColor(0xfaf0e7)
                 .setAuthor({
@@ -295,8 +307,6 @@ const autoresponder: Command = {
               await interaction.reply({ embeds: [embed] });
               return;
             }
-
-            const reply = guildAutoresponders.get(specificTrigger)!;
 
             const embed = new EmbedBuilder()
               .setColor(0xfaf0e7)
@@ -313,7 +323,7 @@ const autoresponder: Command = {
                 },
                 {
                   name: 'reply',
-                  value: reply,
+                  value: autoresponder.reply,
                   inline: false,
                 }
               );
@@ -321,6 +331,9 @@ const autoresponder: Command = {
             await interaction.reply({ embeds: [embed] });
           } else {
             // show all autoresponders
+            const guildAutoresponders =
+              autoresponderService.getGuildAutoresponders(guildId);
+
             if (guildAutoresponders.size === 0) {
               const embed = new EmbedBuilder()
                 .setColor(0xfaf0e7)
@@ -346,7 +359,7 @@ const autoresponder: Command = {
               .setTitle(`here are your autoresponders !`);
 
             let count = 0;
-            for (const [trigger, reply] of guildAutoresponders) {
+            for (const [trigger, autoresponder] of guildAutoresponders) {
               if (count >= 25) {
                 embed.setDescription(
                   `showing first 25 of ${guildAutoresponders.size} autoresponders`
@@ -356,7 +369,7 @@ const autoresponder: Command = {
 
               embed.addFields({
                 name: trigger,
-                value: '',
+                value: '​',
                 inline: false,
               });
 
