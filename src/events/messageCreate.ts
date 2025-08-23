@@ -6,6 +6,8 @@ import { MessageFormatter } from '../utils/MessageFormatter';
 import { initializeWordFilter, getWordFilter } from '../utils/wordFilter';
 import { FunctionCall } from '../functions/FunctionRegistry';
 
+import { AutoresponderProcessor } from '../services/autoresponder/AutoresponderProcessor';
+
 import { logger } from '../utils/logger';
 
 const messageCreate: Event = {
@@ -32,7 +34,7 @@ const messageCreate: Event = {
   },
 };
 
-// will think of a more graceful solutionf or this later
+// autoresponders =========================================
 async function checkAutoresponders(message: Message): Promise<void> {
   if (message.channel.type === ChannelType.DM) return;
 
@@ -45,109 +47,26 @@ async function checkAutoresponders(message: Message): Promise<void> {
     message.content
   );
 
-  // placeholders ============================================================
   if (matchedAutoresponder) {
     try {
-      let reply = matchedAutoresponder.reply;
+      const processor = AutoresponderProcessor.getInstance();
 
-      // user placeholders
-      reply = reply.replace(/\{user\}/gi, message.author.toString());
-      reply = reply.replace(
-        /\{user_tag\}/gi,
-        `${message.author.username}#${message.author.discriminator}`
-      );
-      reply = reply.replace(/\{user_name\}/gi, message.author.username);
-      reply = reply.replace(/\{user_id\}/gi, message.author.id);
-      reply = reply.replace(
-        /\{user_nick\}/gi,
-        message.member?.nickname || message.author.username
-      );
-      reply = reply.replace(
-        /\{user_displaycolor\}/gi,
-        message.member?.displayHexColor || '#000000'
+      // parse trigger arguments
+      const triggerArgs = message.content.split(/\s+/);
+
+      const processedReply = await processor.processReply(
+        matchedAutoresponder.reply,
+        message,
+        triggerArgs
       );
 
-      // user dates
-      if (message.member) {
-        const joinTimestamp = Math.floor(
-          message.member.joinedTimestamp! / 1000
-        );
-        reply = reply.replace(/\{user_joindate\}/gi, `<t:${joinTimestamp}:F>`);
+      if (processedReply && 'send' in message.channel) {
+        await message.channel.send(processedReply);
 
-        if (message.member.premiumSince) {
-          const boostTimestamp = Math.floor(
-            message.member.premiumSinceTimestamp! / 1000
-          );
-          reply = reply.replace(
-            /\{user_boostsince\}/gi,
-            `<t:${boostTimestamp}:F>`
-          );
-        } else {
-          reply = reply.replace(/\{user_boostsince\}/gi, 'never');
-        }
-      }
-
-      const createTimestamp = Math.floor(
-        message.author.createdTimestamp / 1000
-      );
-      reply = reply.replace(
-        /\{user_createdate\}/gi,
-        `<t:${createTimestamp}:F>`
-      );
-
-      // server placeholders
-      reply = reply.replace(
-        /\{server\}/gi,
-        message.guild?.name || 'this server'
-      );
-      reply = reply.replace(
-        /\{server_name\}/gi,
-        message.guild?.name || 'this server'
-      );
-      reply = reply.replace(/\{server_id\}/gi, message.guildId || 'unknown');
-      reply = reply.replace(
-        /\{server_membercount\}/gi,
-        message.guild?.memberCount.toString() || '0'
-      );
-
-      // economy placeholders
-      if (
-        reply.includes('{user_balance}') ||
-        reply.includes('{server_currency}')
-      ) {
-        const economyService = serviceManager.getEconomyService();
-        const userBalance = await economyService.getBalance(
-          message.guildId!,
-          message.guild!.name,
-          message.author.id
-        );
-        const guildEconomy = economyService.getGuildEconomy(message.guildId!);
-        const currency = guildEconomy?.currency || {
-          emoji: '🧀',
-          name: 'curds',
-        };
-
-        reply = reply.replace(
-          /\{user_balance\}/gi,
-          userBalance.balance.toString()
-        );
-        reply = reply.replace(
-          /\{server_currency\}/gi,
-          `${currency.emoji} ${currency.name}`
+        logger.debug(
+          `triggered autoresponder "${matchedAutoresponder.trigger}" in ${message.guild?.name}`
         );
       }
-
-      // channel placeholders
-      reply = reply.replace(/\{channel\}/gi, message.channel.toString());
-      reply = reply.replace(/\{channel_id\}/gi, message.channelId);
-
-      if ('send' in message.channel) {
-        await message.channel.send(reply);
-      }
-
-      logger.debug(
-        `triggered autoresponder "${matchedAutoresponder.trigger}" in ${message.guild?.name}`
-      );
     } catch (error) {
       logger.error('error sending autoresponder reply:', error);
     }
