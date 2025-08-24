@@ -2,6 +2,8 @@ import { Events, Client } from 'discord.js';
 import { Event } from '../types/discord';
 import { VoiceCaptureService } from '../services/voice/VoiceCaptureService';
 
+import { setupModalHandler } from '../commands/embed';
+
 import { logger } from '../utils/logger';
 
 const ready: Event = {
@@ -17,6 +19,9 @@ const ready: Event = {
     const voiceCapture = VoiceCaptureService.getInstance();
     voiceCapture.initialize(client);
     logger.info('initialized voice capture service');
+
+    setupModalHandler(client);
+    logger.info('initialized embed modal handler');
   },
 };
 
