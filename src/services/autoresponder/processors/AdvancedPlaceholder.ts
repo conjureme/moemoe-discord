@@ -10,17 +10,11 @@ export class AdvancedPlaceholderProcessor extends BaseProcessor {
 
     try {
       if (placeholder === 'range') {
-        // look for a preceding {range:X-Y} in the text to get bounds
-        const rangePattern = /\{range:(\d+)-(\d+)\}/i;
-        const rangeMatch = context.message.content.match(rangePattern);
-
-        if (rangeMatch) {
-          const min = parseInt(rangeMatch[1]);
-          const max = parseInt(rangeMatch[2]);
-          const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
-          return randomValue.toString();
+        if (context.metadata?.rangeValue !== undefined) {
+          return context.metadata.rangeValue.toString();
         }
 
+        // fallback to default 1-100 if no range was set
         return Math.floor(Math.random() * 100 + 1).toString();
       }
 
@@ -71,6 +65,15 @@ export class RangeVariableProcessor extends BaseProcessor {
   pattern = /\{range:(\d+)-(\d+)\}/gi;
 
   process(match: RegExpMatchArray, context: ProcessorContext): string {
+    const min = parseInt(match[1]);
+    const max = parseInt(match[2]);
+    const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
+
+    if (!context.metadata) {
+      context.metadata = {};
+    }
+    context.metadata.rangeValue = randomValue;
+
     return '';
   }
 }
