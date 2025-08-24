@@ -13,6 +13,15 @@ export interface ProcessorContext {
   };
   // for recursive processing of nested placeholders
   processNested?: (text: string) => Promise<string>;
+  // metadata for action processors to communicate
+  metadata?: {
+    sendAsDM?: boolean;
+    useEmbed?: boolean;
+    embedName?: string;
+    sendToChannel?: string;
+    addedBalance?: number;
+    [key: string]: any;
+  };
 }
 
 export abstract class BaseProcessor {

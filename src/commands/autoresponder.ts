@@ -78,6 +78,41 @@ const autoresponder: Command = {
             .setMaxLength(200)
             .setAutocomplete(true)
         )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName('matchmode')
+        .setDescription('set the match mode for an autoresponder')
+        .addStringOption((option) =>
+          option
+            .setName('trigger')
+            .setDescription('the trigger to modify')
+            .setRequired(true)
+            .setMaxLength(200)
+            .setAutocomplete(true)
+        )
+        .addStringOption((option) =>
+          option
+            .setName('mode')
+            .setDescription('how the trigger should be matched')
+            .setRequired(true)
+            .addChoices(
+              { name: 'exact - must match exactly', value: 'exact' },
+              {
+                name: 'contains - message contains trigger',
+                value: 'contains',
+              },
+              {
+                name: 'startswith - message starts with trigger',
+                value: 'startswith',
+              },
+              {
+                name: 'endswith - message ends with trigger',
+                value: 'endswith',
+              },
+              { name: 'regex - use regular expression', value: 'regex' }
+            )
+        )
     ),
 
   async autocomplete(interaction: any) {
@@ -378,6 +413,67 @@ const autoresponder: Command = {
 
             await interaction.reply({ embeds: [embed] });
           }
+          break;
+        }
+        case 'matchmode': {
+          const trigger = interaction.options
+            .getString('trigger', true)
+            .toLowerCase();
+          const mode = interaction.options.getString('mode', true) as
+            | 'exact'
+            | 'contains'
+            | 'startswith'
+            | 'endswith'
+            | 'regex';
+
+          const result = autoresponderService.setMatchMode(
+            guildId,
+            trigger,
+            mode
+          );
+
+          if (!result.success) {
+            const embed = new EmbedBuilder()
+              .setColor(0xfaf0e7)
+              .setAuthor({
+                name: guildName,
+                iconURL: guildIcon,
+              })
+              .setTitle('autoresponder not found')
+              .setDescription(
+                `no autoresponder found with trigger **"${trigger}"**`
+              );
+
+            await interaction.reply({ embeds: [embed] });
+            return;
+          }
+
+          const embed = new EmbedBuilder()
+            .setColor(0xfaf0e7)
+            .setAuthor({
+              name: guildName,
+              iconURL: guildIcon,
+            })
+            .setTitle('✦ match mode updated !')
+            .setDescription(
+              `autoresponder **"${trigger}"** now uses **${mode}** matching`
+            )
+            .addFields({
+              name: 'how it works',
+              value: {
+                exact: 'message must be exactly the trigger',
+                contains: 'trigger can appear anywhere in message',
+                startswith: 'message must start with trigger',
+                endswith: 'message must end with trigger',
+                regex: 'trigger is treated as a regular expression',
+              }[mode]!,
+              inline: false,
+            });
+
+          await interaction.reply({ embeds: [embed] });
+          logger.info(
+            `updated match mode for autoresponder "${trigger}" to ${mode} in ${guildName}`
+          );
           break;
         }
       }

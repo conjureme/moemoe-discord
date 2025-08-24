@@ -6,6 +6,7 @@ export interface Autoresponder {
   trigger: string;
   reply: string;
   enabled: boolean;
+  matchMode?: 'exact' | 'contains' | 'startswith' | 'endswith' | 'regex';
 }
 
 export interface GuildAutoresponders {
@@ -266,12 +267,76 @@ export class AutoresponderService {
     for (const [trigger, autoresponder] of guildData.autoresponders) {
       if (!autoresponder.enabled) continue;
 
-      if (lowerContent === trigger.toLowerCase()) {
+      const matchMode = autoresponder.matchMode || 'exact';
+      const lowerTrigger = trigger.toLowerCase();
+
+      let matches = false;
+
+      switch (matchMode) {
+        case 'exact':
+          matches = lowerContent === lowerTrigger;
+          break;
+
+        case 'contains':
+          matches = lowerContent.includes(lowerTrigger);
+          break;
+
+        case 'startswith':
+          matches = lowerContent.startsWith(lowerTrigger);
+          break;
+
+        case 'endswith':
+          matches = lowerContent.endsWith(lowerTrigger);
+          break;
+
+        case 'regex':
+          try {
+            const regex = new RegExp(`\\b${trigger}\\b`, 'i');
+            matches = regex.test(messageContent);
+          } catch (error) {
+            logger.error(`invalid regex in autoresponder: ${trigger}`);
+            matches = false;
+          }
+          break;
+      }
+
+      if (matches) {
         return autoresponder;
       }
     }
 
     return undefined;
+  }
+
+  setMatchMode(
+    guildId: string,
+    trigger: string,
+    matchMode: 'exact' | 'contains' | 'startswith' | 'endswith' | 'regex'
+  ): { success: boolean; message: string } {
+    const guildData = this.guildCache.get(guildId);
+
+    if (!guildData) {
+      return {
+        success: false,
+        message: 'no autoresponders configured for this guild',
+      };
+    }
+
+    const autoresponder = guildData.autoresponders.get(trigger);
+    if (!autoresponder) {
+      return {
+        success: false,
+        message: 'autoresponder not found',
+      };
+    }
+
+    autoresponder.matchMode = matchMode;
+    this.queueSave(guildId);
+
+    return {
+      success: true,
+      message: `match mode set to ${matchMode}`,
+    };
   }
 
   // cleanup method for graceful shutdown

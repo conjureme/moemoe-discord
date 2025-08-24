@@ -1,4 +1,4 @@
-import { Message } from 'discord.js';
+import { Message, EmbedBuilder, TextChannel } from 'discord.js';
 
 import {
   BaseProcessor,
@@ -10,6 +10,12 @@ import { UserPlaceholderProcessor } from './processors/UserPlaceholder';
 import { ServerPlaceholderProcessor } from './processors/ServerPlaceholder';
 import { ChannelPlaceholderProcessor } from './processors/ChannelPlaceholder';
 import { EconomyPlaceholderProcessor } from './processors/EconomyPlaceholder';
+import {
+  AdvancedPlaceholderProcessor,
+  RangeVariableProcessor,
+} from './processors/AdvancedPlaceholder';
+import { ActionPlaceholderProcessor } from './processors/ActionPlaceholder';
+import { EconomyActionProcessor } from './processors/EconomyAction';
 
 import { serviceManager } from '../ServiceManager';
 import { logger } from '../../utils/logger';
@@ -30,7 +36,12 @@ export class AutoresponderProcessor {
   }
 
   private registerDefaults(): void {
+    // order does matter here, actions and ranges should come first
     this.processors = [
+      new ActionPlaceholderProcessor(),
+      new RangeVariableProcessor(),
+      new EconomyActionProcessor(),
+      new AdvancedPlaceholderProcessor(),
       new UserPlaceholderProcessor(),
       new ServerPlaceholderProcessor(),
       new ChannelPlaceholderProcessor(),
@@ -46,7 +57,7 @@ export class AutoresponderProcessor {
     reply: string,
     message: Message,
     triggerArgs?: string[]
-  ): Promise<string | null> {
+  ): Promise<string | any | null> {
     const context: ProcessorContext = {
       message,
       guild: message.guild || undefined,
@@ -56,19 +67,70 @@ export class AutoresponderProcessor {
         economy: serviceManager.getEconomyService(),
         ai: serviceManager.getAIService(),
       },
+      metadata: {},
       processNested: (text) => this.processText(text, context),
     };
 
     try {
-      return await this.processText(reply, context);
+      const processedText = await this.processText(reply, context);
+
+      // handle metadata actions
+      if (context.metadata) {
+        if (context.metadata.sendAsDM) {
+          try {
+            await message.author.send(
+              this.buildResponse(processedText, context)
+            );
+            return null;
+          } catch (error) {
+            logger.error('failed to send DM:', error);
+          }
+        }
+
+        if (context.metadata.sendToChannel) {
+          try {
+            const channel = await message.client.channels.fetch(
+              context.metadata.sendToChannel
+            );
+            if (channel && 'send' in channel) {
+              await (channel as TextChannel).send(
+                this.buildResponse(processedText, context)
+              );
+              return null;
+            }
+          } catch (error) {
+            logger.error('failed to send to specified channel:', error);
+          }
+        }
+
+        // build response based on metadata
+        return this.buildResponse(processedText, context);
+      }
+
+      return processedText;
     } catch (error) {
       if (error instanceof ConstraintNotMetError) {
         logger.debug(`autoresponder constraint not met: ${error.message}`);
-        return null; // don't send response
+        return null;
       }
       logger.error('error processing autoresponder reply:', error);
       throw error;
     }
+  }
+
+  private buildResponse(text: string, context: ProcessorContext): string | any {
+    if (!context.metadata) {
+      return text;
+    }
+
+    // handle embed
+    if (context.metadata.useEmbed) {
+      const embed = new EmbedBuilder().setColor(0xfaf0e7).setDescription(text);
+
+      return { embeds: [embed] };
+    }
+
+    return text;
   }
 
   private async processText(

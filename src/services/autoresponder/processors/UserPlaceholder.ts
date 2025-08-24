@@ -3,7 +3,7 @@ import { BaseProcessor, ProcessorContext } from './Base';
 export class UserPlaceholderProcessor extends BaseProcessor {
   name = 'user-placeholders';
   pattern =
-    /\{(user|username|user_id|user_nick|user_displaycolor|user_joindate|user_boostsince|user_createdate)\}/gi;
+    /\{(user|username|displayname|user_id|user_nickname|user_displaycolor|user_joindate|user_boostsince|user_createdate)\}/gi;
 
   process(match: RegExpMatchArray, context: ProcessorContext): string {
     const placeholder = match[1].toLowerCase();
@@ -16,10 +16,13 @@ export class UserPlaceholderProcessor extends BaseProcessor {
       case 'username':
         return message.author.username;
 
+      case 'displayname':
+        return message.author.displayName;
+
       case 'user_id':
         return message.author.id;
 
-      case 'user_nick':
+      case 'user_nickname':
         return message.member?.nickname || message.author.username;
 
       case 'user_displaycolor':
