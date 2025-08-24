@@ -10,7 +10,6 @@ import {
   TextInputBuilder,
   TextInputStyle,
   ComponentType,
-  StringSelectMenuBuilder,
   ColorResolvable,
 } from 'discord.js';
 
@@ -237,9 +236,16 @@ const embed: Command = {
           const guildEmbeds = embedService.getGuildEmbeds(guildId);
 
           if (guildEmbeds.size === 0) {
-            await interaction.reply({
-              content: 'no embeds found in this server',
-            });
+            const embed = new EmbedBuilder()
+              .setColor(0xfaf0e7)
+              .setAuthor({
+                name: guildName,
+                iconURL: guildIcon,
+              })
+              .setTitle('there are no embeds here !')
+              .setDescription('you can make one using `/embed create`!');
+
+            await interaction.reply({ embeds: [embed] });
             return;
           }
 
@@ -327,7 +333,37 @@ const embed: Command = {
           const saveName = interaction.options.getString('name')?.toLowerCase();
 
           try {
-            const data = JSON.parse(jsonString);
+            let data = JSON.parse(jsonString);
+
+            // handle different json formats
+            if (
+              data.embeds &&
+              Array.isArray(data.embeds) &&
+              data.embeds.length > 0
+            ) {
+              data = data.embeds[0];
+            } else if (data.embed && typeof data.embed === 'object') {
+              data = data.embed;
+            }
+
+            const hasContent = !!(
+              data.title ||
+              data.description ||
+              data.author?.name ||
+              data.footer?.text ||
+              (data.fields &&
+                Array.isArray(data.fields) &&
+                data.fields.length > 0)
+            );
+
+            if (!hasContent) {
+              await interaction.reply({
+                content:
+                  'embed must have at least one of: title, description, author, footer, or fields',
+              });
+              return;
+            }
+
             const testEmbed = EmbedBuilder.from(data);
 
             if (saveName) {
@@ -909,13 +945,42 @@ async function handleModalSubmit(
         const jsonString = interaction.fields.getTextInputValue('json');
 
         try {
-          const data = JSON.parse(jsonString);
-          updateResult = embedService.updateEmbed(
-            guildId,
-            embedName,
-            data,
-            interaction.user.id
+          let data = JSON.parse(jsonString);
+
+          if (
+            data.embeds &&
+            Array.isArray(data.embeds) &&
+            data.embeds.length > 0
+          ) {
+            data = data.embeds[0];
+          } else if (data.embed && typeof data.embed === 'object') {
+            data = data.embed;
+          }
+
+          const hasContent = !!(
+            data.title ||
+            data.description ||
+            data.author?.name ||
+            data.footer?.text ||
+            (data.fields &&
+              Array.isArray(data.fields) &&
+              data.fields.length > 0)
           );
+
+          if (!hasContent) {
+            updateResult = {
+              success: false,
+              message:
+                'embed must have at least one of: title, description, author, footer, or fields',
+            };
+          } else {
+            updateResult = embedService.updateEmbed(
+              guildId,
+              embedName,
+              data,
+              interaction.user.id
+            );
+          }
         } catch (error) {
           updateResult = {
             success: false,
