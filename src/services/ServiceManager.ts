@@ -3,6 +3,7 @@ import { MemoryService } from './memory/MemoryService';
 import { AIService } from './ai/AIService';
 import { EconomyService } from './economy/EconomyService';
 import { AutoresponderService } from './autoresponder/AutoresponderService';
+import { EmbedService } from './embed/EmbedService';
 
 import { logger } from '../utils/logger';
 
@@ -13,6 +14,7 @@ class ServiceManager {
   private aiService: AIService | null = null;
   private economyService: EconomyService | null = null;
   private autoresponderService: AutoresponderService | null = null;
+  private embedService: EmbedService | null = null;
 
   private constructor() {
     // private constructor for singleton
@@ -66,6 +68,14 @@ class ServiceManager {
     return this.autoresponderService;
   }
 
+  public getEmbedService(): EmbedService {
+    if (!this.embedService) {
+      this.embedService = new EmbedService();
+      logger.debug('initialized EmbedService');
+    }
+    return this.embedService;
+  }
+
   // reset services when needed
   public resetServices(): void {
     this.configService = null;
@@ -73,6 +83,7 @@ class ServiceManager {
     this.aiService = null;
     this.economyService = null;
     this.autoresponderService = null;
+    this.embedService = null;
     logger.info('reset all services');
   }
 }
