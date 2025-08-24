@@ -1,6 +1,6 @@
 <div align="center">
   <img src="https://github.com/user-attachments/assets/db6fb2fc-f917-4bd5-801f-7a8994ac22a0" alt="moemoe logo" width="200">
-  <p><strong>a conversational discord bot with a bunch of cool stuff like function calling, character card importing, and other things!</strong></p>
+  <p><strong>a conversational discord bot with function calling, autoresponder, economy, and other things!</strong></p>
   <p>
     <img src="https://img.shields.io/badge/discord.js-v14-blue?style=flat-square&logo=discord" alt="Discord.js">
     <img src="https://img.shields.io/badge/TypeScript-5.0+-blue?style=flat-square&logo=typescript" alt="TypeScript">
@@ -8,18 +8,30 @@
   </p>
 </div>
 
-## what is moemoe?
+## what is moemoe-discord?
 
-moemoe is the name of the multi-faceted discord bot built for my server! unlike traditional command-based bots, moemoe is able to engage in conversations while maintaining context and personality across messages and channels. it's cable to perform actions autonomously through function calling- sending DMs, updating its own status, joining voice channels, and much more- all within the flow of conversation. moemoe is also capable of running its own slash commands!
+moemoe-discord is the discord module for moemoe. this serves as a way for moemoe to interact with users in my server along with providing other abilities like embed building, autoresponses, economy, and gambling.
+
+while it was built for my own project, it's fully customizable (more intuitive customization systems are in progress) so that you can add it to your own server and tailor it to your own use. it serves almost as a bridge for an LLM to interact with your server in ways a real user could through functions that allow it to execute commands, send DMs, seeing user activity statuses, and even joining voice calls and chatting.
+
+> [!NOTE]
+>
+> moemoe is still early on in her development. while this discord module is fully functional, there are many areas that need polishing or bug-checking.
+>
+> i'm also only one person, so changes and updates may be slow to progress and this project is purely passion. i would greatly appreciate feedback, critiques, and suggestions if you use it. it's also perfectly fine if you are not familiar with TypeScript, discord.js, or coding in general—any and all feedback is helpful!
+>
+> i'll also be looking for artists to commission for moemoe-related art such as emotes, character sheets, among other things.
+>
+> if you're interested in interacting with moemoe, feel free to join my [discord](https://discord.gg/rn9j69ApJQ) where you can chat with her or interact with some of the discord bot features, or share your art! you're also more than welcome to ask me for techincal support for running your own 'moemoe' or best practices for bringing your server mascot to "life" through an LLM.
 
 ### key features
 
 - **conversational first** - mention or DM the bot for chat interaction
-- **persistent memory** - maintains conversation context per channel with intelligent token management
+- **persistent memory** - maintains conversation context guild-wide or optionally channel-specific
 - **autonomous actions** - can execute discord actions (send messages, join calls, etc.) and slash commands
 - **customizable personality** - define unique traits, dialogue styles, and behaviors via JSON or future character card importing/dashboard
 - **multi-provider support** - works with local models (such as [KoboldCPP](https://github.com/LostRuins/koboldcpp)) or cloud-provider APIs
-- **response filtering** - customizable word filter to ensure responses stay aligned with your own server and use case
+- **response filtering** - customizable (optional) word filter to ensure responses stay aligned with your own server and use case
 
 ## quick start
 
@@ -35,7 +47,7 @@ moemoe is the name of the multi-faceted discord bot built for my server! unlike 
 
 ```bash
 # clone and install
-git clone https://github.com/conjureme/moemoe.git
+git clone https://github.com/conjureme/moemoe-discord.git
 cd moemoe
 npm install
 
@@ -52,7 +64,7 @@ npm run dev
 
 ### basic configuration
 
-edit `config/bot.json` to customize your bot's personality:
+edit `config/bot.json` to customize your bot's personality. there's default configs if you need inspriation or guidance for making your own persona
 
 ```json
 {
@@ -66,49 +78,9 @@ edit `config/bot.json` to customize your bot's personality:
 }
 ```
 
-## usage
+### advanced config
 
-### chatting
-
-- **mention** `@moemoe` in any channel to start talking
-- **DM** the bot for conversations
-- each channel maintains its own conversation history
-
-### commands
-
-- `/memory clear` - clear conversation history in current channel
-- `/memory stats` - view memory usage statistics
-- `/embed` - create custom discord embeds
-
-### function examples
-
-just ask naturally in conversation:
-
-- "send a dm to @user saying hello"
-- "update your status to playing minecraft"
-- "join the voice channel i'm in"
-- "change your bio to something cool"
-
-## file structure
-
-```
-src/
-├── bot/          # discord client and initialization
-├── commands/     # slash command handlers
-├── events/       # discord event handlers
-├── services/     # core services
-│   ├── ai/       # AI providers and prompt building
-│   ├── memory/   # conversation persistence
-│   ├── voice/    # bot voice capabilities
-│   ├── economy/  # economy logic and settings
-│   └── config/   # configuration management
-├── functions/    # bot action implementations
-└── utils/        # shared utilities
-```
-
-## advanced configuration
-
-a web dashboard is in the works for easier configuration and imports
+depending on the model you use, the default `ai.json` settings may not work. currently you can change the sequence and suffix tags along with any sampler settings, but it's all through JSON. a web dashboard for configuring everything will be made soon.
 
 ### AI settings (`config/ai.json`)
 
@@ -128,6 +100,34 @@ a web dashboard is in the works for easier configuration and imports
 - blacklisted words
 - replacement tags
 
+## usage
+
+### chatting
+
+- **mention** `@moemoe` in any channel to start talking
+- **DM** the bot for conversations
+- you can use `/memory type mode:` to switch between channel separated and guild wide memory
+
+### commands
+
+> a docs site will be published soon containing every command, function, and autoresponder feature. the commands below are the most important.
+
+- `/memory clear` - clears conversation history (guild or channel depending on mode)
+- `/autoresponder create` - creates an autoresponder where you can set the trigger and reply. this supports placeholder variables and functions.
+- `/embed create` - creates an embed with a modal form builder or optional JSON pasting from popular services such as [glitchii](https://glitchii.github.io/embedbuilder/) or [discohook](https://discohook.org)
+- `/currency` - configure your server's currency: emoji, name, starting balance, and rewards for currency commands.
+- `/blackjack` - very important command
+
+### function examples
+
+just ask naturally in conversation:
+
+- "send a dm to @user saying hello" => `{{send_dm(user_id="860733331532808213", message="hello tyler!")}}`
+- "update your status to playing minecraft" => `{{update_status(activity_type="playing", activity_text="Minecraft")}}`
+- "join the voice channel i'm in" => `{{join_call()}}`
+- "change your bio to something cool" => this one was temporarily disabled because moemoe continued updating it to nonsense
+- "tell me what i'm listening to" => `{{get_user_activity(user_id="860733331532808213")}}` (listening to Jeremy Soule's "Wings of Kynareth" as of writing this btw)
+
 ## development
 
 ```bash
@@ -143,34 +143,25 @@ npm run deploy -- --guild GUILD_ID
 
 ## roadmap
 
-### completed
+### discord bot
 
 - [x] core bot functionality
+- [x] word filtering
+- [x] currency system
+- [x] minigames/gambling
+- [x] autoresponder
+- [x] voice channel audio support
+
+### AI model
+
 - [x] memory system with persistence
 - [x] configurable personas
 - [x] function calling
-- [x] word filtering
 - [x] image understanding (for vision models)
-- [x] currency system
-- [x] minigames/gambling
-
-### in progress
-
-- [ ] voice channel audio support
-- [ ] web dashboard for configuration
-- [ ] character card imports
-
-**discord-bot specific:**
-
-- [ ] autoresponder
-
-### planned
-
 - [ ] full provider support
+- [ ] multi-bot conversations
 - [ ] lorebook system for extended context
 - [ ] RAG (retrieval augmented generation)
-- [ ] multi-bot conversations
-- [ ] webhook integrations
 
 ### considering
 
