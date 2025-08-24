@@ -1,10 +1,10 @@
 import { BaseProcessor, ProcessorContext, ConstraintNotMetError } from './Base';
-import { TextChannel, EmbedBuilder } from 'discord.js';
+import { TextChannel } from 'discord.js';
 import { logger } from '../../../utils/logger';
 
 export class ActionPlaceholderProcessor extends BaseProcessor {
   name = 'action-placeholders';
-  pattern = /\{(dm|embed(?::[^}]+)?|sendto:[^}]+)\}/gi;
+  pattern = /\{(dm|embed(?!:[^}]+)|sendto:[^}]+)\}/gi;
 
   async process(
     match: RegExpMatchArray,
@@ -22,19 +22,12 @@ export class ActionPlaceholderProcessor extends BaseProcessor {
         return '';
       }
 
-      if (action.startsWith('embed')) {
+      if (action === 'embed') {
+        // only handling {embed} here, not named!
         if (!context.metadata) {
           context.metadata = {};
         }
-
-        const embedParts = action.split(':');
-        if (embedParts.length > 1) {
-          // {embed:name} - for future implementation
-          context.metadata.useEmbed = true;
-          context.metadata.embedName = embedParts[1];
-        } else {
-          context.metadata.useEmbed = true;
-        }
+        context.metadata.useEmbed = true;
         return '';
       }
 

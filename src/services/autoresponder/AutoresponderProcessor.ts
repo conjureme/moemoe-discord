@@ -128,15 +128,19 @@ export class AutoresponderProcessor {
     // handle stored embed
     if (context.metadata.useStoredEmbed && context.metadata.storedEmbedData) {
       const embed = EmbedBuilder.from(context.metadata.storedEmbedData);
-      return { embeds: [embed] };
+      return { content: null, embeds: [embed] };
     }
 
     if (context.metadata.useEmbed) {
+      if (!text || !text.trim()) {
+        // if no text content, we should not create an empty embed
+        return null;
+      }
       const embed = new EmbedBuilder().setColor(0xfaf0e7).setDescription(text);
-      return { embeds: [embed] };
+      return { content: null, embeds: [embed] };
     }
 
-    return text;
+    return text && text.trim() ? text : null;
   }
 
   private async processText(
