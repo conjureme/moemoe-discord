@@ -6,7 +6,7 @@ export interface Autoresponder {
   trigger: string;
   reply: string;
   enabled: boolean;
-  matchMode?: 'exact' | 'contains' | 'startswith' | 'endswith' | 'regex';
+  matchMode?: 'exact' | 'contains' | 'startswith' | 'endswith' | 'default';
 }
 
 export interface GuildAutoresponders {
@@ -267,36 +267,43 @@ export class AutoresponderService {
     for (const [trigger, autoresponder] of guildData.autoresponders) {
       if (!autoresponder.enabled) continue;
 
-      const matchMode = autoresponder.matchMode || 'exact';
+      const matchMode = autoresponder.matchMode || 'default';
       const lowerTrigger = trigger.toLowerCase();
 
       let matches = false;
 
       switch (matchMode) {
         case 'exact':
-          matches = lowerContent === lowerTrigger;
+          matches = messageContent === trigger;
           break;
 
         case 'contains':
-          matches = lowerContent.includes(lowerTrigger);
+          try {
+            const wordRegex = new RegExp(
+              `\\b${trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`,
+              'i'
+            );
+            matches = wordRegex.test(messageContent);
+          } catch (error) {
+            logger.error(`error in contains match for trigger: ${trigger}`);
+            matches = false;
+          }
           break;
 
         case 'startswith':
-          matches = lowerContent.startsWith(lowerTrigger);
+          matches =
+            lowerContent === lowerTrigger ||
+            lowerContent.startsWith(lowerTrigger + ' ');
           break;
 
         case 'endswith':
-          matches = lowerContent.endsWith(lowerTrigger);
+          matches =
+            lowerContent === lowerTrigger ||
+            lowerContent.endsWith(' ' + lowerTrigger);
           break;
 
-        case 'regex':
-          try {
-            const regex = new RegExp(`\\b${trigger}\\b`, 'i');
-            matches = regex.test(messageContent);
-          } catch (error) {
-            logger.error(`invalid regex in autoresponder: ${trigger}`);
-            matches = false;
-          }
+        case 'default':
+          matches = lowerContent === lowerTrigger;
           break;
       }
 
@@ -311,7 +318,7 @@ export class AutoresponderService {
   setMatchMode(
     guildId: string,
     trigger: string,
-    matchMode: 'exact' | 'contains' | 'startswith' | 'endswith' | 'regex'
+    matchMode: 'exact' | 'contains' | 'startswith' | 'endswith' | 'default'
   ): { success: boolean; message: string } {
     const guildData = this.guildCache.get(guildId);
 

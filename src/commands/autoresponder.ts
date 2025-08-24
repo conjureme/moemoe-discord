@@ -110,7 +110,7 @@ const autoresponder: Command = {
                 name: 'endswith - message ends with trigger',
                 value: 'endswith',
               },
-              { name: 'regex - use regular expression', value: 'regex' }
+              { name: 'default - message is only trigger', value: 'default' }
             )
         )
     ),
@@ -424,7 +424,7 @@ const autoresponder: Command = {
             | 'contains'
             | 'startswith'
             | 'endswith'
-            | 'regex';
+            | 'default';
 
           const result = autoresponderService.setMatchMode(
             guildId,
@@ -461,11 +461,12 @@ const autoresponder: Command = {
             .addFields({
               name: 'how it works',
               value: {
-                exact: 'message must be exactly the trigger',
+                exact: 'trigger message must be EXACT—capitalization and all',
                 contains: 'trigger can appear anywhere in message',
                 startswith: 'message must start with trigger',
                 endswith: 'message must end with trigger',
-                regex: 'trigger is treated as a regular expression',
+                default:
+                  'matches only the exact word as a standalone message. "fart" matches "fart" or "Fart" but not "fart lol"',
               }[mode]!,
               inline: false,
             });
