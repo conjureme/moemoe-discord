@@ -117,7 +117,7 @@ export class SingSongFunction extends BaseFunction {
       );
 
       for (const userId of listeningUsers) {
-        voiceCapture.stopListening(userId);
+        voiceCapture.pauseListening(userId);
       }
 
       const resource = createAudioResource(songPath, {
@@ -170,7 +170,7 @@ export class SingSongFunction extends BaseFunction {
       logger.info('resuming voice capture after song playback');
 
       for (const userId of listeningUsers) {
-        voiceManager.startListeningToUser(context.guildId, userId);
+        voiceCapture.resumeListening(userId);
       }
 
       return {

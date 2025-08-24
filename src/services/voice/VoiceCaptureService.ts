@@ -37,6 +37,8 @@ export class VoiceCaptureService {
   private channels: number = 2;
   private transcriptHandler: VoiceTranscriptHandler | null = null;
 
+  private activeSubscriptions: Map<string, any> = new Map(); // stores active opus streams
+
   public initialize(client: Client): void {
     this.transcriptHandler = new VoiceTranscriptHandler(client);
     logger.debug('initialized voice transcription handler');
@@ -74,6 +76,13 @@ export class VoiceCaptureService {
       return;
     }
 
+    const existingSubscription = this.activeSubscriptions.get(userId);
+    if (existingSubscription) {
+      logger.debug(`cleaning up existing subscription for user ${userId}`);
+      existingSubscription.destroy();
+      this.activeSubscriptions.delete(userId);
+    }
+
     const receiver = connection.receiver;
 
     const opusStream = receiver.subscribe(userId, {
@@ -82,6 +91,8 @@ export class VoiceCaptureService {
         duration: this.silenceTimeout,
       },
     });
+
+    this.activeSubscriptions.set(userId, opusStream);
 
     logger.debug(`subscribed to audio stream for user ${userId}`);
 
@@ -100,7 +111,6 @@ export class VoiceCaptureService {
 
     const pcmStream = opusStream.pipe(opusDecoder);
 
-    // collect PCM data
     pcmStream.on('data', (chunk: Buffer) => {
       const userBuffer = this.userBuffers.get(userId);
       if (userBuffer) {
@@ -112,25 +122,46 @@ export class VoiceCaptureService {
     pcmStream.on('end', async () => {
       logger.debug(`audio stream ended for user ${userId}`);
 
+      this.activeSubscriptions.delete(userId);
+
       await this.processUserAudio(userId);
 
       const listener = this.activeListeners.get(userId);
       if (listener && listener.isListening) {
-        logger.debug(`re-subscribing to user ${userId} after processing`);
+        // check if we still don't have an active subscription
+        if (!this.activeSubscriptions.has(userId)) {
+          logger.debug(`re-subscribing to user ${userId} after processing`);
 
-        setTimeout(() => {
-          this.subscribeToUser(connection, userId);
-        }, 100);
+          setTimeout(() => {
+            const currentListener = this.activeListeners.get(userId);
+            // double-check before re-subscribing
+            if (
+              currentListener &&
+              currentListener.isListening &&
+              !this.activeSubscriptions.has(userId)
+            ) {
+              this.subscribeToUser(connection, userId);
+            }
+          }, 100);
+        } else {
+          logger.debug(
+            `skipping re-subscription for ${userId} - already active`
+          );
+        }
       }
     });
 
     pcmStream.on('error', (error) => {
       logger.error(`error in audio stream for user ${userId}:`, error);
+      this.activeSubscriptions.delete(userId);
       this.cleanupUserBuffer(userId);
 
-      // try to re-subscribe if still active
       const listener = this.activeListeners.get(userId);
-      if (listener && listener.isListening) {
+      if (
+        listener &&
+        listener.isListening &&
+        !this.activeSubscriptions.has(userId)
+      ) {
         setTimeout(() => {
           this.subscribeToUser(connection, userId);
         }, 1000);
@@ -146,7 +177,13 @@ export class VoiceCaptureService {
       listener.isListening = false;
     }
 
-    // clean up
+    // clean up subscription
+    const subscription = this.activeSubscriptions.get(userId);
+    if (subscription) {
+      subscription.destroy();
+      this.activeSubscriptions.delete(userId);
+    }
+
     this.activeListeners.delete(userId);
     this.cleanupUserBuffer(userId);
   }
@@ -347,6 +384,39 @@ export class VoiceCaptureService {
       listenerDetails,
       bufferDetails,
     };
+  }
+
+  pauseListening(userId: string): void {
+    const listener = this.activeListeners.get(userId);
+    if (listener) {
+      listener.isListening = false;
+
+      const subscription = this.activeSubscriptions.get(userId);
+      if (subscription) {
+        subscription.destroy();
+        this.activeSubscriptions.delete(userId);
+      }
+
+      this.cleanupUserBuffer(userId);
+      logger.debug(`paused listening for user ${userId}`);
+    }
+  }
+
+  resumeListening(userId: string): void {
+    const listener = this.activeListeners.get(userId);
+    if (listener && !listener.isListening) {
+      listener.isListening = true;
+
+      // make sure we don't have an existing subscription
+      const existingSubscription = this.activeSubscriptions.get(userId);
+      if (existingSubscription) {
+        existingSubscription.destroy();
+        this.activeSubscriptions.delete(userId);
+      }
+
+      this.subscribeToUser(listener.connection, userId);
+      logger.debug(`resumed listening for user ${userId}`);
+    }
   }
 
   // cleanup all buffers
