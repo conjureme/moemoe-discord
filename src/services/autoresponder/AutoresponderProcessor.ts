@@ -16,6 +16,7 @@ import {
 } from './processors/AdvancedPlaceholder';
 import { ActionPlaceholderProcessor } from './processors/ActionPlaceholder';
 import { EconomyActionProcessor } from './processors/EconomyAction';
+import { EmbedPlaceholderProcessor } from './processors/EmbedPlaceholder';
 
 import { serviceManager } from '../ServiceManager';
 import { logger } from '../../utils/logger';
@@ -41,6 +42,7 @@ export class AutoresponderProcessor {
       new ActionPlaceholderProcessor(),
       new RangeVariableProcessor(),
       new EconomyActionProcessor(),
+      new EmbedPlaceholderProcessor(),
       new AdvancedPlaceholderProcessor(),
       new UserPlaceholderProcessor(),
       new ServerPlaceholderProcessor(),
@@ -123,10 +125,14 @@ export class AutoresponderProcessor {
       return text;
     }
 
-    // handle embed
+    // handle stored embed
+    if (context.metadata.useStoredEmbed && context.metadata.storedEmbedData) {
+      const embed = EmbedBuilder.from(context.metadata.storedEmbedData);
+      return { embeds: [embed] };
+    }
+
     if (context.metadata.useEmbed) {
       const embed = new EmbedBuilder().setColor(0xfaf0e7).setDescription(text);
-
       return { embeds: [embed] };
     }
 
