@@ -104,7 +104,6 @@ export class PromptBuilder {
       }
     }
 
-    logger.debug(storyString);
     return storyString;
   }
 
@@ -113,19 +112,28 @@ export class PromptBuilder {
     const aiConfig = this.configService.getAIConfig();
     const messages: AIMessage[] = [];
 
-    // handle first message if no history
-    if (memoryMessages.length === 0 && botConfig.data.first_mes) {
-      messages.push({
-        role: 'assistant',
-        content: botConfig.data.first_mes,
-        name: botConfig.name,
-      });
-      return messages;
-    }
+    // // handle first message if no history
+    // if (memoryMessages.length === 0 && botConfig.data.first_mes) {
+    //   messages.push({
+    //     role: 'assistant',
+    //     content: botConfig.data.first_mes,
+    //     name: botConfig.name,
+    //   });
+    //   return messages;
+    // }
 
     if (botConfig.data.mes_example && !aiConfig.instruct.skip_examples) {
       const examples = this.parseExampleMessages(botConfig.data.mes_example);
       messages.push(...examples);
+    }
+
+    if (botConfig.data.first_mes) {
+      const prefixMessage = `${botConfig.name}: ${botConfig.data.first_mes}`;
+      messages.push({
+        role: 'assistant',
+        content: prefixMessage,
+        name: botConfig.name,
+      });
     }
 
     // process conversation history
@@ -143,10 +151,10 @@ export class PromptBuilder {
           name: 'System',
         });
       } else if (isBot) {
-        // assistant messages - DO NOT prepend name, it's already in the content if needed
+        const prefixMessage = `${botConfig.name}: ${msg.content}`;
         messages.push({
           role: 'assistant',
-          content: msg.content,
+          content: prefixMessage,
           name: botConfig.name,
         });
       } else if (isUser) {
