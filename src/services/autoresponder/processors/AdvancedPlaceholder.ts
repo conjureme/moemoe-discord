@@ -3,7 +3,7 @@ import { logger } from '../../../utils/logger';
 
 export class AdvancedPlaceholderProcessor extends BaseProcessor {
   name = 'advanced-placeholders';
-  pattern = /\[(range|\$\d+(?:\+|\-\d+)?)\]/gi;
+  pattern = /\[(range|response|\$\d+(?:\+|\-\d+)?)\]/gi;
 
   process(match: RegExpMatchArray, context: ProcessorContext): string {
     const placeholder = match[1];
@@ -16,6 +16,13 @@ export class AdvancedPlaceholderProcessor extends BaseProcessor {
 
         // fallback to default 1-100 if no range was set
         return Math.floor(Math.random() * 100 + 1).toString();
+      }
+
+      if (placeholder === 'response') {
+        if (context.metadata?.generatedResponse !== undefined) {
+          return context.metadata.generatedResponse;
+        }
+        return '';
       }
 
       if (placeholder.startsWith('$')) {

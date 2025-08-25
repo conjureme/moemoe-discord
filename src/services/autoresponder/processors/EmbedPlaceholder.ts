@@ -11,12 +11,17 @@ export class EmbedPlaceholderProcessor extends BaseProcessor {
     match: RegExpMatchArray,
     context: ProcessorContext
   ): Promise<string> {
-    const embedName = match[1];
+    let embedName = match[1];
 
     try {
       if (!context.guild) {
         logger.warn('embed placeholder used outside of guild context');
         return match[0];
+      }
+
+      // process nested placeholders in the embed name
+      if (context.processNested) {
+        embedName = await context.processNested(embedName);
       }
 
       const embedService = serviceManager.getEmbedService();
@@ -34,12 +39,17 @@ export class EmbedPlaceholderProcessor extends BaseProcessor {
         context.metadata = {};
       }
 
-      // mark that we're using a stored embed
-      context.metadata.useStoredEmbed = true;
-      context.metadata.storedEmbedData = storedEmbed.data;
+      if (!context.metadata.embeds) {
+        context.metadata.embeds = [];
+      }
 
-      // return empty string since the embed will replace the entire message
-      return '';
+      context.metadata.embeds.push({
+        data: storedEmbed.data,
+        position: match.index || 0, // track position in original text
+      });
+
+      // return a placeholder that we'll use to track position
+      return `{{EMBED_${context.metadata.embeds.length - 1}}}`;
     } catch (error) {
       logger.error(`error processing embed placeholder ${embedName}:`, error);
       return match[0];

@@ -18,6 +18,11 @@ import { ActionPlaceholderProcessor } from './processors/ActionPlaceholder';
 import { EconomyActionProcessor } from './processors/EconomyAction';
 import { EmbedPlaceholderProcessor } from './processors/EmbedPlaceholder';
 
+import {
+  GenerateResponsePlaceholder,
+  GeneratedResponseVariable,
+} from './processors/GenerateResponsePlaceholder';
+
 import { serviceManager } from '../ServiceManager';
 import { logger } from '../../utils/logger';
 
@@ -41,9 +46,11 @@ export class AutoresponderProcessor {
     this.processors = [
       new ActionPlaceholderProcessor(),
       new RangeVariableProcessor(),
+      new GenerateResponsePlaceholder(),
       new EconomyActionProcessor(),
       new EmbedPlaceholderProcessor(),
       new AdvancedPlaceholderProcessor(),
+      new GeneratedResponseVariable(),
       new UserPlaceholderProcessor(),
       new ServerPlaceholderProcessor(),
       new ChannelPlaceholderProcessor(),
@@ -125,7 +132,28 @@ export class AutoresponderProcessor {
       return text;
     }
 
-    // handle stored embed
+    if (context.metadata.embeds && context.metadata.embeds.length > 0) {
+      const embeds = [];
+      let content = text;
+
+      const sortedEmbeds = [...context.metadata.embeds].sort(
+        (a, b) => (a.position || 0) - (b.position || 0)
+      );
+
+      for (const embedInfo of sortedEmbeds) {
+        const embed = EmbedBuilder.from(embedInfo.data);
+        embeds.push(embed);
+      }
+
+      content = content.replace(/\{\{EMBED_\d+\}\}/g, '').trim();
+
+      if (content) {
+        return { content, embeds };
+      } else {
+        return { content: null, embeds };
+      }
+    }
+
     if (context.metadata.useStoredEmbed && context.metadata.storedEmbedData) {
       const embed = EmbedBuilder.from(context.metadata.storedEmbedData);
       return { content: null, embeds: [embed] };
@@ -151,12 +179,58 @@ export class AutoresponderProcessor {
 
     logger.debug(`processing text: "${text}"`);
 
+    // first pass: process placeholders that generate values (range, generate_response)
+    const generatorProcessors = [
+      'range-variables',
+      'generate-response-placeholder',
+    ];
+
     for (const processor of this.processors) {
+      if (!generatorProcessors.includes(processor.name)) {
+        continue;
+      }
+
       if (!processor.canProcess(processed)) {
         continue;
       }
 
-      // use a fresh regex instance for matchAll
+      const freshPattern = processor.getFreshPattern();
+      const matches = [...processed.matchAll(freshPattern)];
+
+      logger.debug(`${processor.name} found ${matches.length} matches`);
+
+      for (let i = matches.length - 1; i >= 0; i--) {
+        const match = matches[i];
+        const matchIndex = match.index!;
+
+        try {
+          const replacement = await Promise.resolve(
+            processor.process(match, context)
+          );
+
+          processed =
+            processed.slice(0, matchIndex) +
+            replacement +
+            processed.slice(matchIndex + match[0].length);
+        } catch (error) {
+          if (error instanceof ConstraintNotMetError) {
+            throw error;
+          }
+          logger.error(`error in processor ${processor.name}:`, error);
+        }
+      }
+    }
+
+    // second pass: process all other placeholders
+    for (const processor of this.processors) {
+      if (generatorProcessors.includes(processor.name)) {
+        continue;
+      }
+
+      if (!processor.canProcess(processed)) {
+        continue;
+      }
+
       const freshPattern = processor.getFreshPattern();
       const matches = [...processed.matchAll(freshPattern)];
 
