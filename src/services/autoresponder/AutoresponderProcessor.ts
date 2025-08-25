@@ -85,35 +85,52 @@ export class AutoresponderProcessor {
 
       // handle metadata actions
       if (context.metadata) {
+        const response = this.buildResponse(processedText, context);
+        const responses: Array<Promise<any>> = [];
+
+        if (
+          !context.metadata.sendAsDM &&
+          !context.metadata.sendToChannels?.length
+        ) {
+          return response;
+        }
+
         if (context.metadata.sendAsDM) {
-          try {
-            await message.author.send(
-              this.buildResponse(processedText, context)
+          responses.push(
+            message.author.send(response).catch((error) => {
+              logger.error('failed to send DM:', error);
+            })
+          );
+        }
+
+        // handle multiple channel sends
+        if (
+          context.metadata.sendToChannels &&
+          context.metadata.sendToChannels.length > 0
+        ) {
+          for (const channelId of context.metadata.sendToChannels) {
+            responses.push(
+              message.client.channels
+                .fetch(channelId)
+                .then((channel) => {
+                  if (channel && 'send' in channel) {
+                    return (channel as TextChannel).send(response);
+                  }
+                })
+                .catch((error) => {
+                  logger.error(
+                    `failed to send to channel ${channelId}:`,
+                    error
+                  );
+                })
             );
-            return null;
-          } catch (error) {
-            logger.error('failed to send DM:', error);
           }
         }
 
-        if (context.metadata.sendToChannel) {
-          try {
-            const channel = await message.client.channels.fetch(
-              context.metadata.sendToChannel
-            );
-            if (channel && 'send' in channel) {
-              await (channel as TextChannel).send(
-                this.buildResponse(processedText, context)
-              );
-              return null;
-            }
-          } catch (error) {
-            logger.error('failed to send to specified channel:', error);
-          }
-        }
+        // wait for all sends to complete
+        await Promise.all(responses);
 
-        // build response based on metadata
-        return this.buildResponse(processedText, context);
+        return null;
       }
 
       return processedText;

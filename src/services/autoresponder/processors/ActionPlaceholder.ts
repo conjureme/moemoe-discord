@@ -14,7 +14,6 @@ export class ActionPlaceholderProcessor extends BaseProcessor {
 
     try {
       if (action === 'dm') {
-        // store flag in context for main processor to handle
         if (!context.metadata) {
           context.metadata = {};
         }
@@ -23,7 +22,6 @@ export class ActionPlaceholderProcessor extends BaseProcessor {
       }
 
       if (action === 'embed') {
-        // only handling {embed} here, not named!
         if (!context.metadata) {
           context.metadata = {};
         }
@@ -37,7 +35,10 @@ export class ActionPlaceholderProcessor extends BaseProcessor {
         if (!context.metadata) {
           context.metadata = {};
         }
-        context.metadata.sendToChannel = channelId;
+
+        if (!context.metadata.sendToChannels) {
+          context.metadata.sendToChannels = [];
+        }
 
         try {
           const channel =
@@ -76,6 +77,9 @@ export class ActionPlaceholderProcessor extends BaseProcessor {
               `no permission to send in that channel`
             );
           }
+
+          // add to array instead of replacing
+          context.metadata.sendToChannels.push(channelId);
         } catch (error) {
           if (error instanceof ConstraintNotMetError) {
             throw error;
