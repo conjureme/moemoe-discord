@@ -17,6 +17,7 @@ import {
 import { ActionPlaceholderProcessor } from './processors/ActionPlaceholder';
 import { EconomyActionProcessor } from './processors/EconomyAction';
 import { EmbedPlaceholderProcessor } from './processors/EmbedPlaceholder';
+import { FormattingPlaceholderProcessor } from './processors/FormattingPlaceholder';
 
 import {
   GenerateResponsePlaceholder,
@@ -46,6 +47,7 @@ export class AutoresponderProcessor {
     this.processors = [
       new ActionPlaceholderProcessor(),
       new RangeVariableProcessor(),
+      new FormattingPlaceholderProcessor(),
       new GenerateResponsePlaceholder(),
       new EconomyActionProcessor(),
       new EmbedPlaceholderProcessor(),
