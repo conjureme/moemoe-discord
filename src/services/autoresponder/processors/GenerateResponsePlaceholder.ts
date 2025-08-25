@@ -42,16 +42,18 @@ export class GenerateResponsePlaceholder extends BaseProcessor {
   ): Promise<string> {
     const aiService = context.services.ai!;
 
-    // process nested placeholders in the prompt first
     let processedPrompt = prompt;
-    if (context.processNested) {
-      processedPrompt = await context.processNested(prompt);
-    }
+
+    // handle placeholders iwthin the prompt
+    // surely this will be perfect and bug free
+    processedPrompt = await this.processNestedPlaceholders(
+      processedPrompt,
+      context
+    );
 
     const formattedPrompt = `[SYSTEM: generate_response - ${processedPrompt}]`;
 
     // create a minimal context with just the prompt as a system message
-    // this way we get a direct response without conversation history
     const systemMessage = {
       id: `generate-${Date.now()}`,
       channelId: context.message.channelId,
@@ -70,6 +72,60 @@ export class GenerateResponsePlaceholder extends BaseProcessor {
     );
 
     return response.content || '';
+  }
+
+  private async processNestedPlaceholders(
+    text: string,
+    context: ProcessorContext
+  ): Promise<string> {
+    let processed = text;
+
+    // all placeholders inside will use square brackets.
+    // will probably be unique to only this
+    processed = processed.replace(
+      /\[user\]/gi,
+      context.message.author.toString()
+    );
+    processed = processed.replace(
+      /\[username\]/gi,
+      context.message.author.username
+    );
+    processed = processed.replace(
+      /\[displayname\]/gi,
+      context.message.author.displayName
+    );
+    processed = processed.replace(/\[user_id\]/gi, context.message.author.id);
+    processed = processed.replace(
+      /\[user_nickname\]/gi,
+      context.member?.nickname || context.message.author.username
+    );
+
+    // process server placeholders
+    processed = processed.replace(
+      /\[server_name\]/gi,
+      context.guild?.name || 'this server'
+    );
+    processed = processed.replace(
+      /\[server_id\]/gi,
+      context.guild?.id || 'unknown'
+    );
+    processed = processed.replace(
+      /\[server_membercount\]/gi,
+      context.guild?.memberCount.toString() || '0'
+    );
+
+    // process channel placeholders
+    processed = processed.replace(
+      /\[channel\]/gi,
+      context.message.channel.toString()
+    );
+    processed = processed.replace(
+      /\[channel_id\]/gi,
+      context.message.channelId
+    );
+
+    logger.debug(`processed nested placeholders: "${text}" -> "${processed}"`);
+    return processed;
   }
 }
 
