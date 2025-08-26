@@ -5,7 +5,7 @@ import { logger } from '../../../utils/logger';
 export class ServerPlaceholderProcessor extends BaseProcessor {
   name = 'server-placeholders';
   pattern =
-    /\{(server_name|server_id|server_membercount|server_randommember|server_owner|server_owner_id|server_createdate|date)\}/gi;
+    /\{(server_name|server_id|server_membercount|server_randommember|server_owner|server_owner_id|server_createdate|server_icon|date)\}/gi;
 
   async process(
     match: RegExpMatchArray,
@@ -50,6 +50,12 @@ export class ServerPlaceholderProcessor extends BaseProcessor {
             message.guild.createdTimestamp / 1000
           );
           return `<t:${createTimestamp}:F>`;
+
+        case 'server_icon':
+          if (!message.guild) return '';
+
+          const iconUrl = message.guild.iconURL({ size: 256 });
+          return iconUrl || '';
 
         case 'date':
           const nowTimestamp = Math.floor(Date.now() / 1000);

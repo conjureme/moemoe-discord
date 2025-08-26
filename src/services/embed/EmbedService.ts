@@ -398,6 +398,63 @@ export class EmbedService {
     return EmbedBuilder.from(storedEmbed.data);
   }
 
+  buildDiscordEmbedWithPlaceholders(
+    storedEmbed: StoredEmbed,
+    guild?: any
+  ): EmbedBuilder {
+    const processedData = JSON.parse(JSON.stringify(storedEmbed.data));
+
+    return EmbedBuilder.from(processedData);
+  }
+
+  validateEmbedUrls(embedData: APIEmbed): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    const isValidUrl = (url: string | undefined): boolean => {
+      if (!url) return true; // empty is valid
+
+      if (url.includes('{') && url.includes('}')) {
+        return true; // we'll validate after processing
+      }
+
+      try {
+        new URL(url);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (embedData.url && !isValidUrl(embedData.url)) {
+      errors.push('Invalid URL in embed URL field');
+    }
+
+    if (embedData.author?.icon_url && !isValidUrl(embedData.author.icon_url)) {
+      errors.push('Invalid URL in author icon');
+    }
+
+    if (embedData.author?.url && !isValidUrl(embedData.author.url)) {
+      errors.push('Invalid URL in author URL');
+    }
+
+    if (embedData.thumbnail?.url && !isValidUrl(embedData.thumbnail.url)) {
+      errors.push('Invalid URL in thumbnail');
+    }
+
+    if (embedData.image?.url && !isValidUrl(embedData.image.url)) {
+      errors.push('Invalid URL in image');
+    }
+
+    if (embedData.footer?.icon_url && !isValidUrl(embedData.footer.icon_url)) {
+      errors.push('Invalid URL in footer icon');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
+  }
+
   // cleanup method for graceful shutdown
   cleanup(): void {
     if (this.saveTimer) {

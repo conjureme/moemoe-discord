@@ -170,8 +170,12 @@ const embed: Command = {
           }
 
           const storedEmbed = embedService.getEmbed(guildId, name)!;
-          const previewEmbed = embedService.buildDiscordEmbed(storedEmbed);
 
+          const embedDataForPreview = JSON.parse(
+            JSON.stringify(storedEmbed.data)
+          );
+
+          const previewEmbed = EmbedBuilder.from(embedDataForPreview);
           const buttons = createEditButtons(name);
 
           await interaction.reply({
@@ -197,7 +201,167 @@ const embed: Command = {
             return;
           }
 
-          const previewEmbed = embedService.buildDiscordEmbed(storedEmbed);
+          //
+          const embedDataForPreview = JSON.parse(
+            JSON.stringify(storedEmbed.data)
+          );
+
+          const { EmbedPlaceholderProcessor } = await import(
+            '../services/embed/EmbedPlaceholderProcessor'
+          );
+
+          if (interaction.guild) {
+            if (embedDataForPreview.title) {
+              embedDataForPreview.title =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.title,
+                  interaction.guild
+                );
+            }
+
+            if (embedDataForPreview.description) {
+              embedDataForPreview.description =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.description,
+                  interaction.guild
+                );
+            }
+
+            if (embedDataForPreview.author?.name) {
+              embedDataForPreview.author.name =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.author.name,
+                  interaction.guild
+                );
+            }
+
+            if (embedDataForPreview.author?.icon_url) {
+              const processedIconUrl =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.author.icon_url,
+                  interaction.guild
+                );
+
+              if (processedIconUrl && processedIconUrl.trim()) {
+                try {
+                  new URL(processedIconUrl);
+                  embedDataForPreview.author.icon_url = processedIconUrl;
+                } catch {
+                  delete embedDataForPreview.author.icon_url;
+                }
+              } else {
+                delete embedDataForPreview.author.icon_url;
+              }
+            }
+
+            if (embedDataForPreview.author?.url) {
+              const processedUrl =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.author.url,
+                  interaction.guild
+                );
+
+              if (processedUrl && processedUrl.trim()) {
+                try {
+                  new URL(processedUrl);
+                  embedDataForPreview.author.url = processedUrl;
+                } catch {
+                  delete embedDataForPreview.author.url;
+                }
+              } else {
+                delete embedDataForPreview.author.url;
+              }
+            }
+
+            if (embedDataForPreview.footer?.text) {
+              embedDataForPreview.footer.text =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.footer.text,
+                  interaction.guild
+                );
+            }
+
+            if (embedDataForPreview.footer?.icon_url) {
+              const processedFooterIcon =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.footer.icon_url,
+                  interaction.guild
+                );
+
+              if (processedFooterIcon && processedFooterIcon.trim()) {
+                try {
+                  new URL(processedFooterIcon);
+                  embedDataForPreview.footer.icon_url = processedFooterIcon;
+                } catch {
+                  delete embedDataForPreview.footer.icon_url;
+                }
+              } else {
+                delete embedDataForPreview.footer.icon_url;
+              }
+            }
+
+            if (embedDataForPreview.image?.url) {
+              const processedImageUrl =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.image.url,
+                  interaction.guild
+                );
+
+              if (processedImageUrl && processedImageUrl.trim()) {
+                try {
+                  new URL(processedImageUrl);
+                  embedDataForPreview.image.url = processedImageUrl;
+                } catch {
+                  delete embedDataForPreview.image;
+                }
+              } else {
+                delete embedDataForPreview.image;
+              }
+            }
+
+            if (embedDataForPreview.thumbnail?.url) {
+              const processedThumbnailUrl =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.thumbnail.url,
+                  interaction.guild
+                );
+
+              if (processedThumbnailUrl && processedThumbnailUrl.trim()) {
+                try {
+                  new URL(processedThumbnailUrl);
+                  embedDataForPreview.thumbnail.url = processedThumbnailUrl;
+                } catch {
+                  delete embedDataForPreview.thumbnail;
+                }
+              } else {
+                delete embedDataForPreview.thumbnail;
+              }
+            }
+
+            if (
+              embedDataForPreview.fields &&
+              Array.isArray(embedDataForPreview.fields)
+            ) {
+              for (const field of embedDataForPreview.fields) {
+                if (field.name) {
+                  field.name =
+                    await EmbedPlaceholderProcessor.processPlaceholders(
+                      field.name,
+                      interaction.guild
+                    );
+                }
+                if (field.value) {
+                  field.value =
+                    await EmbedPlaceholderProcessor.processPlaceholders(
+                      field.value,
+                      interaction.guild
+                    );
+                }
+              }
+            }
+          }
+
+          const previewEmbed = EmbedBuilder.from(embedDataForPreview);
           const buttons = createEditButtons(name);
 
           await interaction.reply({
@@ -284,7 +448,166 @@ const embed: Command = {
             return;
           }
 
-          const previewEmbed = embedService.buildDiscordEmbed(storedEmbed);
+          const embedDataForPreview = JSON.parse(
+            JSON.stringify(storedEmbed.data)
+          );
+
+          const { EmbedPlaceholderProcessor } = await import(
+            '../services/embed/EmbedPlaceholderProcessor'
+          );
+
+          if (interaction.guild) {
+            if (embedDataForPreview.title) {
+              embedDataForPreview.title =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.title,
+                  interaction.guild
+                );
+            }
+
+            if (embedDataForPreview.description) {
+              embedDataForPreview.description =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.description,
+                  interaction.guild
+                );
+            }
+
+            if (embedDataForPreview.author?.name) {
+              embedDataForPreview.author.name =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.author.name,
+                  interaction.guild
+                );
+            }
+
+            if (embedDataForPreview.author?.icon_url) {
+              const processedIconUrl =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.author.icon_url,
+                  interaction.guild
+                );
+
+              if (processedIconUrl && processedIconUrl.trim()) {
+                try {
+                  new URL(processedIconUrl);
+                  embedDataForPreview.author.icon_url = processedIconUrl;
+                } catch {
+                  delete embedDataForPreview.author.icon_url;
+                }
+              } else {
+                delete embedDataForPreview.author.icon_url;
+              }
+            }
+
+            if (embedDataForPreview.author?.url) {
+              const processedUrl =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.author.url,
+                  interaction.guild
+                );
+
+              if (processedUrl && processedUrl.trim()) {
+                try {
+                  new URL(processedUrl);
+                  embedDataForPreview.author.url = processedUrl;
+                } catch {
+                  delete embedDataForPreview.author.url;
+                }
+              } else {
+                delete embedDataForPreview.author.url;
+              }
+            }
+
+            if (embedDataForPreview.footer?.text) {
+              embedDataForPreview.footer.text =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.footer.text,
+                  interaction.guild
+                );
+            }
+
+            if (embedDataForPreview.footer?.icon_url) {
+              const processedFooterIcon =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.footer.icon_url,
+                  interaction.guild
+                );
+
+              if (processedFooterIcon && processedFooterIcon.trim()) {
+                try {
+                  new URL(processedFooterIcon);
+                  embedDataForPreview.footer.icon_url = processedFooterIcon;
+                } catch {
+                  delete embedDataForPreview.footer.icon_url;
+                }
+              } else {
+                delete embedDataForPreview.footer.icon_url;
+              }
+            }
+
+            if (embedDataForPreview.image?.url) {
+              const processedImageUrl =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.image.url,
+                  interaction.guild
+                );
+
+              if (processedImageUrl && processedImageUrl.trim()) {
+                try {
+                  new URL(processedImageUrl);
+                  embedDataForPreview.image.url = processedImageUrl;
+                } catch {
+                  delete embedDataForPreview.image;
+                }
+              } else {
+                delete embedDataForPreview.image;
+              }
+            }
+
+            if (embedDataForPreview.thumbnail?.url) {
+              const processedThumbnailUrl =
+                await EmbedPlaceholderProcessor.processPlaceholders(
+                  embedDataForPreview.thumbnail.url,
+                  interaction.guild
+                );
+
+              if (processedThumbnailUrl && processedThumbnailUrl.trim()) {
+                try {
+                  new URL(processedThumbnailUrl);
+                  embedDataForPreview.thumbnail.url = processedThumbnailUrl;
+                } catch {
+                  delete embedDataForPreview.thumbnail;
+                }
+              } else {
+                delete embedDataForPreview.thumbnail;
+              }
+            }
+
+            if (
+              embedDataForPreview.fields &&
+              Array.isArray(embedDataForPreview.fields)
+            ) {
+              for (const field of embedDataForPreview.fields) {
+                if (field.name) {
+                  field.name =
+                    await EmbedPlaceholderProcessor.processPlaceholders(
+                      field.name,
+                      interaction.guild
+                    );
+                }
+                if (field.value) {
+                  field.value =
+                    await EmbedPlaceholderProcessor.processPlaceholders(
+                      field.value,
+                      interaction.guild
+                    );
+                }
+              }
+            }
+          }
+
+          const previewEmbed = EmbedBuilder.from(embedDataForPreview);
 
           await interaction.reply({
             content: `preview of **"${name}"**:`,
@@ -335,7 +658,6 @@ const embed: Command = {
           try {
             let data = JSON.parse(jsonString);
 
-            // handle different json formats
             if (
               data.embeds &&
               Array.isArray(data.embeds) &&
@@ -996,7 +1318,164 @@ async function handleModalSubmit(
 
     if (updateResult.success) {
       const updatedEmbed = embedService.getEmbed(guildId, embedName)!;
-      const preview = embedService.buildDiscordEmbed(updatedEmbed);
+
+      //
+      const embedDataForPreview = JSON.parse(JSON.stringify(updatedEmbed.data));
+
+      const { EmbedPlaceholderProcessor } = await import(
+        '../services/embed/EmbedPlaceholderProcessor'
+      );
+
+      if (interaction.guild) {
+        if (embedDataForPreview.title) {
+          embedDataForPreview.title =
+            await EmbedPlaceholderProcessor.processPlaceholders(
+              embedDataForPreview.title,
+              interaction.guild
+            );
+        }
+
+        if (embedDataForPreview.description) {
+          embedDataForPreview.description =
+            await EmbedPlaceholderProcessor.processPlaceholders(
+              embedDataForPreview.description,
+              interaction.guild
+            );
+        }
+
+        if (embedDataForPreview.author?.name) {
+          embedDataForPreview.author.name =
+            await EmbedPlaceholderProcessor.processPlaceholders(
+              embedDataForPreview.author.name,
+              interaction.guild
+            );
+        }
+
+        if (embedDataForPreview.author?.icon_url) {
+          const processedIconUrl =
+            await EmbedPlaceholderProcessor.processPlaceholders(
+              embedDataForPreview.author.icon_url,
+              interaction.guild
+            );
+
+          if (processedIconUrl && processedIconUrl.trim()) {
+            try {
+              new URL(processedIconUrl);
+              embedDataForPreview.author.icon_url = processedIconUrl;
+            } catch {
+              delete embedDataForPreview.author.icon_url;
+            }
+          } else {
+            delete embedDataForPreview.author.icon_url;
+          }
+        }
+
+        if (embedDataForPreview.author?.url) {
+          const processedUrl =
+            await EmbedPlaceholderProcessor.processPlaceholders(
+              embedDataForPreview.author.url,
+              interaction.guild
+            );
+
+          if (processedUrl && processedUrl.trim()) {
+            try {
+              new URL(processedUrl);
+              embedDataForPreview.author.url = processedUrl;
+            } catch {
+              delete embedDataForPreview.author.url;
+            }
+          } else {
+            delete embedDataForPreview.author.url;
+          }
+        }
+
+        if (embedDataForPreview.footer?.text) {
+          embedDataForPreview.footer.text =
+            await EmbedPlaceholderProcessor.processPlaceholders(
+              embedDataForPreview.footer.text,
+              interaction.guild
+            );
+        }
+
+        if (embedDataForPreview.footer?.icon_url) {
+          const processedIconUrl =
+            await EmbedPlaceholderProcessor.processPlaceholders(
+              embedDataForPreview.footer.icon_url,
+              interaction.guild
+            );
+
+          if (processedIconUrl && processedIconUrl.trim()) {
+            try {
+              new URL(processedIconUrl);
+              embedDataForPreview.footer.icon_url = processedIconUrl;
+            } catch {
+              delete embedDataForPreview.footer.icon_url;
+            }
+          } else {
+            delete embedDataForPreview.footer.icon_url;
+          }
+        }
+
+        if (embedDataForPreview.image?.url) {
+          const processedUrl =
+            await EmbedPlaceholderProcessor.processPlaceholders(
+              embedDataForPreview.image.url,
+              interaction.guild
+            );
+
+          if (processedUrl && processedUrl.trim()) {
+            try {
+              new URL(processedUrl);
+              embedDataForPreview.image.url = processedUrl;
+            } catch {
+              delete embedDataForPreview.image;
+            }
+          } else {
+            delete embedDataForPreview.image;
+          }
+        }
+
+        if (embedDataForPreview.thumbnail?.url) {
+          const processedUrl =
+            await EmbedPlaceholderProcessor.processPlaceholders(
+              embedDataForPreview.thumbnail.url,
+              interaction.guild
+            );
+
+          if (processedUrl && processedUrl.trim()) {
+            try {
+              new URL(processedUrl);
+              embedDataForPreview.thumbnail.url = processedUrl;
+            } catch {
+              delete embedDataForPreview.thumbnail;
+            }
+          } else {
+            delete embedDataForPreview.thumbnail;
+          }
+        }
+
+        if (
+          embedDataForPreview.fields &&
+          Array.isArray(embedDataForPreview.fields)
+        ) {
+          for (const field of embedDataForPreview.fields) {
+            if (field.name) {
+              field.name = await EmbedPlaceholderProcessor.processPlaceholders(
+                field.name,
+                interaction.guild
+              );
+            }
+            if (field.value) {
+              field.value = await EmbedPlaceholderProcessor.processPlaceholders(
+                field.value,
+                interaction.guild
+              );
+            }
+          }
+        }
+      }
+
+      const preview = EmbedBuilder.from(embedDataForPreview);
 
       await interaction.update({
         embeds: [preview],

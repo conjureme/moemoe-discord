@@ -1,6 +1,7 @@
 import { BaseProcessor, ProcessorContext } from './Base';
 import { serviceManager } from '../../ServiceManager';
 import { APIEmbed } from 'discord.js';
+
 import { logger } from '../../../utils/logger';
 
 export class EmbedPlaceholderProcessor extends BaseProcessor {
@@ -19,7 +20,6 @@ export class EmbedPlaceholderProcessor extends BaseProcessor {
         return match[0];
       }
 
-      // process nested placeholders in the embed name
       if (context.processNested) {
         embedName = await context.processNested(embedName);
       }
@@ -38,9 +38,7 @@ export class EmbedPlaceholderProcessor extends BaseProcessor {
         JSON.stringify(storedEmbed.data)
       ) as APIEmbed;
 
-      if (context.processNested) {
-        await this.processEmbedPlaceholders(embedData, context);
-      }
+      await this.processEmbedPlaceholders(embedData, context);
 
       if (!context.metadata) {
         context.metadata = {};
@@ -55,7 +53,6 @@ export class EmbedPlaceholderProcessor extends BaseProcessor {
         position: match.index || 0,
       });
 
-      // return a placeholder that we'll use to track position
       return `{{EMBED_${context.metadata.embeds.length - 1}}}`;
     } catch (error) {
       logger.error(`error processing embed placeholder ${embedName}:`, error);
@@ -67,7 +64,6 @@ export class EmbedPlaceholderProcessor extends BaseProcessor {
     embedData: APIEmbed,
     context: ProcessorContext
   ): Promise<void> {
-    //
     if (embedData.title && context.processNested) {
       embedData.title = await context.processNested(embedData.title);
     }
@@ -84,6 +80,44 @@ export class EmbedPlaceholderProcessor extends BaseProcessor {
           embedData.author.name
         );
       }
+
+      if (embedData.author.icon_url && context.processNested) {
+        const processedIconUrl = await context.processNested(
+          embedData.author.icon_url
+        );
+
+        if (processedIconUrl && processedIconUrl.trim()) {
+          try {
+            new URL(processedIconUrl);
+            embedData.author.icon_url = processedIconUrl;
+          } catch {
+            logger.debug(
+              `removing invalid author icon URL after processing: ${processedIconUrl}`
+            );
+            delete embedData.author.icon_url;
+          }
+        } else {
+          delete embedData.author.icon_url;
+        }
+      }
+
+      if (embedData.author.url && context.processNested) {
+        const processedUrl = await context.processNested(embedData.author.url);
+
+        if (processedUrl && processedUrl.trim()) {
+          try {
+            new URL(processedUrl);
+            embedData.author.url = processedUrl;
+          } catch {
+            logger.debug(
+              `removing invalid author URL after processing: ${processedUrl}`
+            );
+            delete embedData.author.url;
+          }
+        } else {
+          delete embedData.author.url;
+        }
+      }
     }
 
     if (embedData.footer) {
@@ -91,6 +125,80 @@ export class EmbedPlaceholderProcessor extends BaseProcessor {
         embedData.footer.text = await context.processNested(
           embedData.footer.text
         );
+      }
+
+      if (embedData.footer.icon_url && context.processNested) {
+        const processedIconUrl = await context.processNested(
+          embedData.footer.icon_url
+        );
+
+        if (processedIconUrl && processedIconUrl.trim()) {
+          try {
+            new URL(processedIconUrl);
+            embedData.footer.icon_url = processedIconUrl;
+          } catch {
+            logger.debug(
+              `removing invalid footer icon URL after processing: ${processedIconUrl}`
+            );
+            delete embedData.footer.icon_url;
+          }
+        } else {
+          delete embedData.footer.icon_url;
+        }
+      }
+    }
+
+    if (embedData.image?.url && context.processNested) {
+      const processedUrl = await context.processNested(embedData.image.url);
+
+      if (processedUrl && processedUrl.trim()) {
+        try {
+          new URL(processedUrl);
+          embedData.image.url = processedUrl;
+        } catch {
+          logger.debug(
+            `removing invalid image URL after processing: ${processedUrl}`
+          );
+          delete embedData.image;
+        }
+      } else {
+        delete embedData.image;
+      }
+    }
+
+    if (embedData.thumbnail?.url && context.processNested) {
+      const processedUrl = await context.processNested(embedData.thumbnail.url);
+
+      if (processedUrl && processedUrl.trim()) {
+        try {
+          new URL(processedUrl);
+          embedData.thumbnail.url = processedUrl;
+        } catch {
+          logger.debug(
+            `removing invalid thumbnail URL after processing: ${processedUrl}`
+          );
+          delete embedData.thumbnail;
+        }
+      } else {
+        delete embedData.thumbnail;
+      }
+    }
+
+    if (embedData.url && context.processNested) {
+      const processedUrl = await context.processNested(embedData.url);
+
+      if (processedUrl && processedUrl.trim()) {
+        try {
+          new URL(processedUrl);
+          embedData.url = processedUrl;
+        } catch {
+          logger.debug(
+            `removing invalid embed URL after processing: ${processedUrl}`
+          );
+          delete embedData.url;
+        }
+      } else {
+        delete embedData.url;
       }
     }
 
