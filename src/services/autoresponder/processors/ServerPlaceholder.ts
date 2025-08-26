@@ -5,7 +5,7 @@ import { logger } from '../../../utils/logger';
 export class ServerPlaceholderProcessor extends BaseProcessor {
   name = 'server-placeholders';
   pattern =
-    /\{(server_name|server_id|server_membercount|server_randommember|server_owner|server_owner_id|server_createdate|server_icon|date)\}/gi;
+    /\{(server_name|server_id|server_membercount|server_membercount_ordinal|server_randommember|server_owner|server_owner_id|server_createdate|server_icon|date)\}/gi;
 
   async process(
     match: RegExpMatchArray,
@@ -33,6 +33,10 @@ export class ServerPlaceholderProcessor extends BaseProcessor {
           const randomMember = nonBotMembers.random();
 
           return randomMember ? randomMember.toString() : '';
+
+        case 'server_membercount_ordinal':
+          const count = message.guild?.memberCount || 0;
+          return this.getOrdinal(count);
 
         case 'server_owner':
           if (!message.guild) return '';
@@ -71,5 +75,11 @@ export class ServerPlaceholderProcessor extends BaseProcessor {
       );
       return match[0];
     }
+  }
+
+  private getOrdinal(n: number): string {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 }
