@@ -18,6 +18,8 @@ import { ActionPlaceholderProcessor } from './processors/ActionPlaceholder';
 import { EconomyActionProcessor } from './processors/EconomyAction';
 import { EmbedPlaceholderProcessor } from './processors/EmbedPlaceholder';
 import { FormattingPlaceholderProcessor } from './processors/FormattingPlaceholder';
+import { PermissionPlaceholderProcessor } from './processors/PermissionPlaceholder';
+import { MiscActionsProcessor } from './processors/MiscActions';
 
 import {
   GenerateResponsePlaceholder,
@@ -45,6 +47,8 @@ export class AutoresponderProcessor {
   private registerDefaults(): void {
     // order does matter here, actions and ranges should come first
     this.processors = [
+      new PermissionPlaceholderProcessor(),
+      new MiscActionsProcessor(),
       new ActionPlaceholderProcessor(),
       new RangeVariableProcessor(),
       new FormattingPlaceholderProcessor(),
@@ -88,20 +92,63 @@ export class AutoresponderProcessor {
       // handle metadata actions
       if (context.metadata) {
         const response = this.buildResponse(processedText, context);
-        const responses: Array<Promise<any>> = [];
 
         if (
           !context.metadata.sendAsDM &&
           !context.metadata.sendToChannels?.length
         ) {
-          return response;
+          if (!response || response === '') {
+            return null;
+          }
+
+          if (!('send' in message.channel)) {
+            logger.error('cannot send to this channel type');
+            return null;
+          }
+
+          const sentMessage = await message.channel.send(response);
+
+          if (context.metadata.replyReactions && sentMessage) {
+            for (const emoji of context.metadata.replyReactions) {
+              try {
+                await sentMessage.react(emoji);
+                logger.debug(`added reaction ${emoji} to reply message`);
+              } catch (error) {
+                logger.error(
+                  `failed to add reaction ${emoji} to reply:`,
+                  error
+                );
+              }
+            }
+          }
+
+          return null;
         }
+
+        const responses: Array<Promise<any>> = [];
 
         if (context.metadata.sendAsDM) {
           responses.push(
-            message.author.send(response).catch((error) => {
-              logger.error('failed to send DM:', error);
-            })
+            message.author
+              .send(response)
+              .then(async (sentMessage) => {
+                if (context.metadata?.replyReactions && sentMessage) {
+                  for (const emoji of context.metadata.replyReactions) {
+                    try {
+                      await sentMessage.react(emoji);
+                    } catch (error) {
+                      logger.error(
+                        `failed to add reaction ${emoji} to DM:`,
+                        error
+                      );
+                    }
+                  }
+                }
+                return sentMessage;
+              })
+              .catch((error) => {
+                logger.error('failed to send DM:', error);
+              })
           );
         }
 
@@ -114,9 +161,26 @@ export class AutoresponderProcessor {
             responses.push(
               message.client.channels
                 .fetch(channelId)
-                .then((channel) => {
+                .then(async (channel) => {
                   if (channel && 'send' in channel) {
-                    return (channel as TextChannel).send(response);
+                    const sentMessage = await (channel as TextChannel).send(
+                      response
+                    );
+
+                    if (context.metadata?.replyReactions && sentMessage) {
+                      for (const emoji of context.metadata.replyReactions) {
+                        try {
+                          await sentMessage.react(emoji);
+                        } catch (error) {
+                          logger.error(
+                            `failed to add reaction ${emoji} to channel message:`,
+                            error
+                          );
+                        }
+                      }
+                    }
+
+                    return sentMessage;
                   }
                 })
                 .catch((error) => {
@@ -146,7 +210,10 @@ export class AutoresponderProcessor {
     }
   }
 
-  private buildResponse(text: string, context: ProcessorContext): string | any {
+  private buildResponse(
+    text: string,
+    context: ProcessorContext
+  ): string | { content?: string; embeds?: any[] } {
     if (!context.metadata) {
       return text;
     }
@@ -166,28 +233,26 @@ export class AutoresponderProcessor {
 
       content = content.replace(/\{\{EMBED_\d+\}\}/g, '').trim();
 
-      if (content) {
-        return { content, embeds };
-      } else {
-        return { content: null, embeds };
-      }
+      return {
+        content: content || undefined,
+        embeds,
+      };
     }
 
     if (context.metadata.useStoredEmbed && context.metadata.storedEmbedData) {
       const embed = EmbedBuilder.from(context.metadata.storedEmbedData);
-      return { content: null, embeds: [embed] };
+      return { embeds: [embed] };
     }
 
     if (context.metadata.useEmbed) {
       if (!text || !text.trim()) {
-        // if no text content, we should not create an empty embed
-        return null;
+        return '';
       }
       const embed = new EmbedBuilder().setColor(0xfaf0e7).setDescription(text);
-      return { content: null, embeds: [embed] };
+      return { embeds: [embed] };
     }
 
-    return text && text.trim() ? text : null;
+    return text && text.trim() ? text : '';
   }
 
   private async processText(

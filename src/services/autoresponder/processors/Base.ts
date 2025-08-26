@@ -11,15 +11,16 @@ export interface ProcessorContext {
     economy?: EconomyService;
     ai?: AIService;
   };
-  // for recursive processing of nested placeholders
   processNested?: (text: string) => Promise<string>;
-  // metadata for action processors to communicate
   metadata?: {
     sendAsDM?: boolean;
     useEmbed?: boolean;
     embedName?: string;
     sendToChannel?: string;
+    sendToChannels?: string[];
     addedBalance?: number;
+    reactions?: Array<{ target: string; emoji: string }>;
+    replyReactions?: string[];
     [key: string]: any;
   };
 }

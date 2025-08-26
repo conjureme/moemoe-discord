@@ -60,9 +60,15 @@ async function checkAutoresponders(message: Message): Promise<void> {
         triggerArgs
       );
 
+      if (processedReply === null) {
+        logger.debug(
+          `autoresponder "${matchedAutoresponder.trigger}" handled internally`
+        );
+        return;
+      }
+
       if (processedReply && 'send' in message.channel) {
         await message.channel.send(processedReply);
-
         logger.debug(
           `triggered autoresponder "${matchedAutoresponder.trigger}" in ${message.guild?.name}`
         );
