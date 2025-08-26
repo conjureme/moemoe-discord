@@ -1,22 +1,24 @@
-import { BaseProcessor, ProcessorContext } from './Base';
+import { BaseProcessor, ProcessorContext, ConstraintNotMetError } from './Base';
+
 import { logger } from '../../../utils/logger';
 
 export class EconomyActionProcessor extends BaseProcessor {
   name = 'economy-actions';
-  pattern = /\{addbal:(\[range\]|\d+)\}/gi;
+  pattern = /\{modifybal:([\+\-=])(\[range\]|\d+)\}/gi;
 
   async process(
     match: RegExpMatchArray,
     context: ProcessorContext
   ): Promise<string> {
-    const amountStr = match[1];
+    const operation = match[1];
+    const amountStr = match[2];
 
     if (
       !context.services.economy ||
       !context.message.guildId ||
       !context.guild
     ) {
-      logger.warn('economy service not available for addbal action');
+      logger.warn('economy service not available for modifybal action');
       return '';
     }
 
@@ -24,47 +26,52 @@ export class EconomyActionProcessor extends BaseProcessor {
       let amount: number;
 
       if (amountStr === '[range]') {
-        // look for the computed range value in the processed text
-        // this assumes [range] was already processed
-        const rangePattern = /\{range:(\d+)-(\d+)\}/i;
-        const rangeMatch = context.message.content.match(rangePattern);
-
-        if (rangeMatch) {
-          const min = parseInt(rangeMatch[1]);
-          const max = parseInt(rangeMatch[2]);
-          amount = Math.floor(Math.random() * (max - min + 1)) + min;
-        } else {
-          amount = Math.floor(Math.random() * 100 + 1);
-        }
+        amount =
+          context.metadata?.rangeValue ?? Math.floor(Math.random() * 100 + 1);
       } else {
         amount = parseInt(amountStr);
-
         if (isNaN(amount)) {
-          logger.error(`invalid amount for addbal: ${amountStr}`);
+          logger.error(`invalid amount for modifybal: ${amountStr}`);
           return '';
         }
       }
 
-      await context.services.economy.addBalance(
-        context.message.guildId,
-        context.guild.name,
-        context.message.author.id,
-        amount,
-        'autoresponder reward'
-      );
+      const economyService = context.services.economy;
+      const userId = context.message.author.id;
 
-      logger.info(
-        `added ${amount} to ${context.message.author.username} via autoresponder`
-      );
+      if (operation === '=') {
+        await economyService.setBalance(
+          context.message.guildId,
+          context.guild.name,
+          userId,
+          amount
+        );
+        logger.info(
+          `set balance to ${amount} for ${context.message.author.username}`
+        );
+      } else {
+        const modifiedAmount = operation === '+' ? amount : -amount;
+        await economyService.addBalance(
+          context.message.guildId,
+          context.guild.name,
+          userId,
+          modifiedAmount,
+          'autoresponder balance modification'
+        );
+        logger.info(
+          `modified balance by ${modifiedAmount} for ${context.message.author.username}`
+        );
+      }
 
       if (!context.metadata) {
         context.metadata = {};
       }
-      context.metadata.addedBalance = amount;
+      context.metadata.modifiedBalance = amount;
+      context.metadata.balanceOperation = operation;
 
       return '';
     } catch (error) {
-      logger.error('error processing addbal action:', error);
+      logger.error('error processing modifybal action:', error);
       return '';
     }
   }

@@ -1,59 +1,101 @@
 import { BaseProcessor, ProcessorContext } from './Base';
 
+import { logger } from '../../../utils/logger';
+
 export class UserPlaceholderProcessor extends BaseProcessor {
   name = 'user-placeholders';
   pattern =
-    /\{(user|username|displayname|user_id|user_nickname|user_displaycolor|user_joindate|user_boostsince|user_createdate)\}/gi;
+    /\{(user|username|displayname|user_id|nickname|user_displaycolor|user_joindate|user_boostsince|user_createdate|user_avatar|user_balance)(?::(\d+))?\}/gi;
 
-  process(match: RegExpMatchArray, context: ProcessorContext): string {
+  async process(
+    match: RegExpMatchArray,
+    context: ProcessorContext
+  ): Promise<string> {
     const placeholder = match[1].toLowerCase();
-    const { message } = context;
+    const targetUserId = match[2];
+    const { message, services } = context;
 
-    switch (placeholder) {
-      case 'user':
-        return message.author.toString();
+    try {
+      let targetUser = message.author;
+      let targetMember = message.member;
 
-      case 'username':
-        return message.author.username;
-
-      case 'displayname':
-        return message.author.displayName;
-
-      case 'user_id':
-        return message.author.id;
-
-      case 'user_nickname':
-        return message.member?.nickname || message.author.username;
-
-      case 'user_displaycolor':
-        return message.member?.displayHexColor || '#000000';
-
-      case 'user_joindate':
-        if (message.member && message.member.joinedTimestamp) {
-          const joinTimestamp = Math.floor(
-            message.member.joinedTimestamp / 1000
-          );
-          return `<t:${joinTimestamp}:F>`;
+      if (targetUserId) {
+        try {
+          targetUser = await message.client.users.fetch(targetUserId);
+          if (message.guild) {
+            targetMember = await message.guild.members
+              .fetch(targetUserId)
+              .catch(() => null);
+          }
+        } catch (error) {
+          logger.warn(`could not fetch user ${targetUserId}`);
+          return match[0];
         }
-        return 'unknown';
+      }
 
-      case 'user_boostsince':
-        if (message.member && message.member.premiumSince) {
-          const boostTimestamp = Math.floor(
-            message.member.premiumSinceTimestamp! / 1000
+      switch (placeholder) {
+        case 'user':
+          return targetUser.toString();
+
+        case 'username':
+          return targetUser.username;
+
+        case 'displayname':
+          return targetUser.displayName;
+
+        case 'user_id':
+          return targetUser.id;
+
+        case 'nickname':
+          return targetMember?.nickname || targetUser.username;
+
+        case 'user_displaycolor':
+          return targetMember?.displayHexColor || '#000000';
+
+        case 'user_joindate':
+          if (targetMember && targetMember.joinedTimestamp) {
+            const joinTimestamp = Math.floor(
+              targetMember.joinedTimestamp / 1000
+            );
+            return `<t:${joinTimestamp}:F>`;
+          }
+          return 'unknown';
+
+        case 'user_boostsince':
+          if (targetMember && targetMember.premiumSince) {
+            const boostTimestamp = Math.floor(
+              targetMember.premiumSinceTimestamp! / 1000
+            );
+            return `<t:${boostTimestamp}:F>`;
+          }
+          return 'never';
+
+        case 'user_createdate':
+          const createTimestamp = Math.floor(
+            targetUser.createdTimestamp / 1000
           );
-          return `<t:${boostTimestamp}:F>`;
-        }
-        return 'never';
+          return `<t:${createTimestamp}:F>`;
 
-      case 'user_createdate':
-        const createTimestamp = Math.floor(
-          message.author.createdTimestamp / 1000
-        );
-        return `<t:${createTimestamp}:F>`;
+        case 'user_avatar':
+          return targetUser.displayAvatarURL({ size: 256 });
 
-      default:
-        return match[0]; // return unchanged if not recognized
+        case 'user_balance':
+          if (services?.economy && message.guildId && message.guild) {
+            const balance = await services.economy.getBalance(
+              message.guildId,
+              message.guild.name,
+              targetUser.id
+            );
+            return balance.balance.toString();
+          }
+          return '0';
+
+        default:
+          return match[0];
+      }
+    } catch (error) {
+      logger.error(`error processing user placeholder ${placeholder}:`, error);
+      return match[0];
     }
   }
 }
