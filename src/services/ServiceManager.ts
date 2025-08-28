@@ -5,6 +5,7 @@ import { EconomyService } from './economy/EconomyService';
 import { AutoresponderService } from './autoresponder/AutoresponderService';
 import { EmbedService } from './embed/EmbedService';
 import { GreetService } from './greet/GreetService';
+import { BoostService } from './boost/BoostService';
 
 import { logger } from '../utils/logger';
 
@@ -17,6 +18,7 @@ class ServiceManager {
   private autoresponderService: AutoresponderService | null = null;
   private embedService: EmbedService | null = null;
   private greetService: GreetService | null = null;
+  private boostService: BoostService | null = null;
 
   private constructor() {
     // private constructor for singleton
@@ -86,6 +88,14 @@ class ServiceManager {
     return this.greetService;
   }
 
+  public getBoostService(): BoostService {
+    if (!this.boostService) {
+      this.boostService = new BoostService();
+      logger.debug('initialized BoostService');
+    }
+    return this.boostService;
+  }
+
   // reset services when needed
   public resetServices(): void {
     this.configService = null;
@@ -95,6 +105,7 @@ class ServiceManager {
     this.autoresponderService = null;
     this.embedService = null;
     this.greetService = null;
+    this.boostService = null;
     logger.info('reset all services');
   }
 }
