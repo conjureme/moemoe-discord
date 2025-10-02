@@ -1,5 +1,5 @@
 import { BaseProvider } from './BaseProvider';
-import { AIResponse, ChatContext, AIMessage } from '../../../types/ai';
+import { AIResponse, ChatContext } from '../../../types/ai';
 import { logger } from '../../../utils/logger';
 
 interface KoboldResponse {
@@ -127,78 +127,60 @@ export class KoboldCPPProvider extends BaseProvider {
     }
   }
 
-  private async extractImages(context: ChatContext): Promise<string[]> {
-    const images: string[] = [];
-
-    for (const message of context.messages) {
-      if (message.role === 'user') {
-        const visionMessage = message as AIMessage;
-        if (visionMessage.images && visionMessage.images.length > 0) {
-          for (const imageUrl of visionMessage.images) {
-            const base64 = await this.fetchImageAsBase64(imageUrl);
-            if (base64) {
-              const base64Data = base64.replace(
-                /^data:image\/[a-z]+;base64,/,
-                ''
-              );
-              images.push(base64Data);
-            }
-          }
-        }
-      }
-    }
-
-    logger.debug(`found ${images.length} images in context messages`);
-    return images;
-  }
-
   private buildRequestBody(prompt: string, images: string[]): any {
     const preset = this.config.preset;
+
+    const parameterMap: Record<string, string> = {
+      max_length: 'max_context_length',
+      rep_pen: 'rep_pen',
+      rep_pen_range: 'rep_pen_range',
+      sampler_order: 'sampler_order',
+      top_p: 'top_p',
+      top_k: 'top_k',
+      top_a: 'top_a',
+      min_p: 'min_p',
+      typical_p: 'typical',
+      tfs: 'tfs',
+      smoothing_factor: 'smoothing_factor',
+      dry_multiplier: 'dry_multiplier',
+      dry_base: 'dry_base',
+      dry_allowed_length: 'dry_allowed_length',
+      dry_sequence_breakers: 'dry_sequence_breakers',
+      xtc_threshold: 'xtc_threshold',
+      xtc_probability: 'xtc_probability',
+      nsigma: 'nsigma',
+      grammar_string: 'grammar',
+      banned_tokens: 'banned_tokens',
+      ignore_eos_token: 'bypass_eos',
+      ban_eos_token: 'ban_eos_token',
+      temperature_last: 'temperature_last',
+    };
 
     const body: any = {
       prompt,
       max_length: preset.genamt,
       temperature: preset.temp,
       stop_sequence: [this.config.instruct.stop_sequence],
+      use_default_badwordsids: true,
+      trim_stop: this.config.context?.trim_sentences || true,
+      render_special: false,
     };
 
-    // add images if present
     if (images.length > 0) {
       body.images = images;
     }
 
-    // map preset params to kobold request body
-    if (preset.max_length !== undefined) {
-      body.max_context_length = preset.max_length;
-    }
-    if (preset.rep_pen !== undefined) {
-      body.rep_pen = preset.rep_pen;
-    }
-    if (preset.rep_pen_range !== undefined) {
-      body.rep_pen_range = preset.rep_pen_range;
-    }
-    if (preset.sampler_order !== undefined) {
-      body.sampler_order = preset.sampler_order;
+    for (const [presetKey, bodyKey] of Object.entries(parameterMap)) {
+      if ((preset as any)[presetKey] !== undefined) {
+        body[bodyKey] = (preset as any)[presetKey];
+      }
     }
 
-    if (preset.top_p !== undefined) body.top_p = preset.top_p;
-    if (preset.top_k !== undefined) body.top_k = preset.top_k;
-    if (preset.top_a !== undefined) body.top_a = preset.top_a;
-    if (preset.min_p !== undefined) body.min_p = preset.min_p;
-    if (preset.typical_p !== undefined) body.typical = preset.typical_p;
-    if (preset.tfs !== undefined) body.tfs = preset.tfs;
-
-    // dynamic temperature
     if (preset.dynatemp) {
       body.dynatemp_range = [preset.min_temp, preset.max_temp];
       body.dynatemp_exponent = preset.dynatemp_exponent;
     }
 
-    if (preset.smoothing_factor !== undefined) {
-      body.smoothing_factor = preset.smoothing_factor;
-    }
-
-    // mirostat
     if (preset.mirostat_mode !== undefined) {
       body.mirostat = preset.mirostat_mode;
     }
@@ -208,54 +190,6 @@ export class KoboldCPPProvider extends BaseProvider {
     if (preset.mirostat_eta !== undefined) {
       body.mirostat_eta = preset.mirostat_eta;
     }
-
-    // dry sampling
-    if (preset.dry_multiplier !== undefined) {
-      body.dry_multiplier = preset.dry_multiplier;
-    }
-    if (preset.dry_base !== undefined) {
-      body.dry_base = preset.dry_base;
-    }
-    if (preset.dry_allowed_length !== undefined) {
-      body.dry_allowed_length = preset.dry_allowed_length;
-    }
-    if (preset.dry_sequence_breakers !== undefined) {
-      body.dry_sequence_breakers = preset.dry_sequence_breakers;
-    }
-
-    // xtc sampling
-    if (preset.xtc_threshold !== undefined) {
-      body.xtc_threshold = preset.xtc_threshold;
-    }
-    if (preset.xtc_probability !== undefined) {
-      body.xtc_probability = preset.xtc_probability;
-    }
-
-    // other parameters
-    if (preset.nsigma !== undefined) body.nsigma = preset.nsigma;
-
-    if (preset.grammar_string !== undefined) {
-      body.grammar = preset.grammar_string;
-    }
-
-    if (preset.banned_tokens !== undefined) {
-      body.banned_tokens = preset.banned_tokens;
-    }
-
-    // koboldcpp specific flags
-    body.use_default_badwordsids = true;
-    body.trim_stop = this.config.context?.trim_sentences || true;
-    body.render_special = false;
-
-    if (preset.ignore_eos_token !== undefined) {
-      body.bypass_eos = preset.ignore_eos_token;
-    }
-
-    if (preset.ban_eos_token !== undefined) {
-      body.ban_eos_token = preset.ban_eos_token;
-    }
-
-    body.temperature_last = preset.temperature_last;
 
     return body;
   }

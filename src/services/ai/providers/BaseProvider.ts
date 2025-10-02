@@ -100,7 +100,6 @@ export abstract class BaseProvider {
     return cleaned;
   }
 
-  // common image fetching utility
   protected async fetchImageAsBase64(url: string): Promise<string | null> {
     try {
       const response = await fetch(url);
@@ -119,5 +118,30 @@ export abstract class BaseProvider {
       logger.error('error fetching image:', error);
       return null;
     }
+  }
+
+  protected async extractImages(context: ChatContext): Promise<string[]> {
+    const images: string[] = [];
+
+    for (const message of context.messages) {
+      if (message.role === 'user') {
+        const visionMessage = message as any;
+        if (visionMessage.images && visionMessage.images.length > 0) {
+          for (const imageUrl of visionMessage.images) {
+            const base64 = await this.fetchImageAsBase64(imageUrl);
+            if (base64) {
+              const base64Data = base64.replace(
+                /^data:image\/[a-z]+;base64,/,
+                ''
+              );
+              images.push(base64Data);
+            }
+          }
+        }
+      }
+    }
+
+    logger.debug(`found ${images.length} images in context messages`);
+    return images;
   }
 }
