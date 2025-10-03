@@ -138,6 +138,8 @@ const greet: Command = {
             content: '', // empty since this is a join event
           } as any;
 
+          await interaction.deferReply();
+
           const processor = AutoresponderProcessor.getInstance();
 
           try {
@@ -147,7 +149,7 @@ const greet: Command = {
               []
             );
 
-            await interaction.reply({
+            await interaction.editReply({
               content: 'your greet message should have been sent!',
             });
 
@@ -162,11 +164,10 @@ const greet: Command = {
             );
           } catch (error) {
             logger.error('error testing greeting:', error);
-            await interaction.reply({
+            await interaction.editReply({
               content:
                 'error processing greeting: ' +
                 (error instanceof Error ? error.message : 'unknown error'),
-              flags: ['Ephemeral'],
             });
           }
           break;
