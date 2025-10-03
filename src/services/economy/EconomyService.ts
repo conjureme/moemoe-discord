@@ -7,25 +7,25 @@ import {
 } from '../../types/economy';
 
 import { logger } from '../../utils/logger';
+import { GuildDataService } from '../base/GuildDataService';
 
-export class EconomyService {
+export class EconomyService extends GuildDataService<GuildEconomy> {
   private economyPath: string;
-  private guildCache: Map<string, GuildEconomy> = new Map();
-  private saveQueue: Set<string> = new Set();
-  private saveTimer: NodeJS.Timeout | null = null;
 
   constructor() {
+    super('economy/guilds');
     this.economyPath = path.join(process.cwd(), 'data', 'economy');
-    this.ensureDirectories();
-    this.loadAllEconomies();
+    this.ensureEconomyDirectories();
   }
 
-  private ensureDirectories(): void {
+  protected getServiceName(): string {
+    return 'guild economies';
+  }
+
+  private ensureEconomyDirectories(): void {
     const dirs = [
-      this.economyPath,
-      path.join(this.economyPath, 'guilds'),
       path.join(this.economyPath, 'transactions'),
-      path.join(this.economyPath, 'global'), // to be implemented
+      path.join(this.economyPath, 'global'),
     ];
 
     for (const dir of dirs) {
@@ -33,71 +33,6 @@ export class EconomyService {
         fs.mkdirSync(dir, { recursive: true });
         logger.debug(`created directory: ${dir}`);
       }
-    }
-  }
-
-  private loadAllEconomies(): void {
-    try {
-      const guildsDir = path.join(this.economyPath, 'guilds');
-      if (fs.existsSync(guildsDir)) {
-        const files = fs
-          .readdirSync(guildsDir)
-          .filter((f) => f.endsWith('.json'));
-
-        for (const file of files) {
-          const guildId = file.replace('.json', '');
-          this.loadGuildEconomy(guildId);
-        }
-      }
-
-      logger.info(`loaded ${this.guildCache.size} guild economies`);
-    } catch (error) {
-      logger.error('error loading economies:', error);
-    }
-  }
-
-  private loadGuildEconomy(guildId: string): void {
-    try {
-      const filePath = path.join(this.economyPath, 'guilds', `${guildId}.json`);
-      if (fs.existsSync(filePath)) {
-        const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        this.guildCache.set(guildId, data);
-      }
-    } catch (error) {
-      logger.error(`error loading economy for guild ${guildId}:`, error);
-    }
-  }
-
-  private queueSave(guildId: string): void {
-    this.saveQueue.add(guildId);
-
-    if (this.saveTimer) {
-      clearTimeout(this.saveTimer);
-    }
-
-    this.saveTimer = setTimeout(() => {
-      this.processSaveQueue();
-    }, 5000);
-  }
-
-  private processSaveQueue(): void {
-    for (const guildId of this.saveQueue) {
-      this.saveGuildEconomy(guildId);
-    }
-    this.saveQueue.clear();
-    this.saveTimer = null;
-  }
-
-  private saveGuildEconomy(guildId: string): void {
-    const economy = this.guildCache.get(guildId);
-    if (!economy) return;
-
-    try {
-      const filePath = path.join(this.economyPath, 'guilds', `${guildId}.json`);
-      fs.writeFileSync(filePath, JSON.stringify(economy, null, 2));
-      logger.debug(`saved economy for guild ${guildId}`);
-    } catch (error) {
-      logger.error(`error saving economy for guild ${guildId}:`, error);
     }
   }
 
@@ -125,7 +60,7 @@ export class EconomyService {
       lastModified: new Date().toISOString(),
     };
 
-    this.guildCache.set(guildId, economy);
+    this.dataCache.set(guildId, economy);
     this.queueSave(guildId);
 
     logger.info(`initialized economy for guild ${guildId}`);
@@ -149,7 +84,7 @@ export class EconomyService {
     guildName: string,
     userId: string
   ): Promise<UserBalance> {
-    let economy = this.guildCache.get(guildId);
+    let economy = this.dataCache.get(guildId);
 
     if (!economy) {
       economy = this.initializeGuildEconomy(guildId, guildName);
@@ -166,7 +101,7 @@ export class EconomyService {
     amount: number,
     description: string = 'earned'
   ): Promise<UserBalance> {
-    let economy = this.guildCache.get(guildId);
+    let economy = this.dataCache.get(guildId);
 
     if (!economy) {
       economy = this.initializeGuildEconomy(guildId, guildName);
@@ -203,7 +138,7 @@ export class EconomyService {
     userId: string,
     newBalance: number
   ): Promise<UserBalance> {
-    let economy = this.guildCache.get(guildId);
+    let economy = this.dataCache.get(guildId);
 
     if (!economy) {
       economy = this.initializeGuildEconomy(guildId, guildName);
@@ -238,7 +173,7 @@ export class EconomyService {
     guildId: string,
     limit: number = 10
   ): Promise<UserBalance[]> {
-    const economy = this.guildCache.get(guildId);
+    const economy = this.dataCache.get(guildId);
     if (!economy) return [];
 
     const balances = Object.values(economy.users)
@@ -249,7 +184,7 @@ export class EconomyService {
   }
 
   getGuildEconomy(guildId: string): GuildEconomy | undefined {
-    const economy = this.guildCache.get(guildId);
+    const economy = this.dataCache.get(guildId);
     return economy ? { ...economy } : undefined;
   }
 
@@ -257,7 +192,7 @@ export class EconomyService {
     guildId: string,
     settings: Partial<GuildEconomy['settings']>
   ): void {
-    const economy = this.guildCache.get(guildId);
+    const economy = this.dataCache.get(guildId);
     if (!economy) return;
 
     economy.settings = { ...economy.settings, ...settings };
@@ -269,7 +204,7 @@ export class EconomyService {
     guildId: string,
     currency: Partial<GuildEconomy['currency']>
   ): void {
-    const economy = this.guildCache.get(guildId);
+    const economy = this.dataCache.get(guildId);
     if (!economy) return;
 
     economy.currency = { ...economy.currency, ...currency };
@@ -284,16 +219,6 @@ export class EconomyService {
     );
   }
 
-  // cleanup method for a wonderfully graceful shutdown
-  cleanup(): void {
-    if (this.saveTimer) {
-      clearTimeout(this.saveTimer);
-      this.processSaveQueue();
-    }
-    logger.debug('economy service cleaned up');
-  }
-
-  // stats methods
   getStats(): {
     totalGuilds: number;
     totalUsers: number;
@@ -302,14 +227,14 @@ export class EconomyService {
     let totalUsers = 0;
     let totalBalance = 0;
 
-    for (const economy of this.guildCache.values()) {
+    for (const economy of this.dataCache.values()) {
       const users = Object.values(economy.users);
       totalUsers += users.length;
       totalBalance += users.reduce((sum, user) => sum + user.balance, 0);
     }
 
     return {
-      totalGuilds: this.guildCache.size,
+      totalGuilds: this.dataCache.size,
       totalUsers,
       totalBalance,
     };

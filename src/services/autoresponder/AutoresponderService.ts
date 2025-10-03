@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../../utils/logger';
+import { GuildDataService } from '../base/GuildDataService';
 
 export interface Autoresponder {
   trigger: string;
@@ -15,56 +16,21 @@ export interface GuildAutoresponders {
   autoresponders: Map<string, Autoresponder>;
 }
 
-export class AutoresponderService {
-  private dataPath: string;
-  private guildCache: Map<string, GuildAutoresponders> = new Map();
-  private saveQueue: Set<string> = new Set();
-  private saveTimer: NodeJS.Timeout | null = null;
-
+export class AutoresponderService extends GuildDataService<GuildAutoresponders> {
   constructor() {
-    this.dataPath = path.join(process.cwd(), 'data', 'autoresponders');
-    this.ensureDirectories();
-    this.loadAllAutoresponders();
+    super('autoresponders/guilds');
   }
 
-  private ensureDirectories(): void {
-    const dirs = [this.dataPath, path.join(this.dataPath, 'guilds')];
-
-    for (const dir of dirs) {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-        logger.debug(`created directory: ${dir}`);
-      }
-    }
+  protected getServiceName(): string {
+    return 'autoresponders';
   }
 
-  private loadAllAutoresponders(): void {
+  protected loadGuildData(guildId: string): void {
     try {
-      const guildsDir = path.join(this.dataPath, 'guilds');
-      if (fs.existsSync(guildsDir)) {
-        const files = fs
-          .readdirSync(guildsDir)
-          .filter((f) => f.endsWith('.json'));
-
-        for (const file of files) {
-          const guildId = file.replace('.json', '');
-          this.loadGuildAutoresponders(guildId);
-        }
-      }
-
-      logger.info(`loaded autoresponders for ${this.guildCache.size} guilds`);
-    } catch (error) {
-      logger.error('error loading autoresponders:', error);
-    }
-  }
-
-  private loadGuildAutoresponders(guildId: string): void {
-    try {
-      const filePath = path.join(this.dataPath, 'guilds', `${guildId}.json`);
+      const filePath = path.join(this.dataPath, `${guildId}.json`);
       if (fs.existsSync(filePath)) {
         const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
-        // convert autoresponders array back to Map
         const autoresponders = new Map<string, Autoresponder>();
         if (data.autoresponders) {
           for (const [trigger, responder] of Object.entries(
@@ -74,52 +40,37 @@ export class AutoresponderService {
           }
         }
 
-        this.guildCache.set(guildId, {
+        this.dataCache.set(guildId, {
           ...data,
           autoresponders,
         });
       }
     } catch (error) {
-      logger.error(`error loading autoresponders for guild ${guildId}:`, error);
+      logger.error(
+        `error loading ${this.getServiceName()} for guild ${guildId}:`,
+        error
+      );
     }
   }
 
-  private queueSave(guildId: string): void {
-    this.saveQueue.add(guildId);
-
-    if (this.saveTimer) {
-      clearTimeout(this.saveTimer);
-    }
-
-    this.saveTimer = setTimeout(() => {
-      this.processSaveQueue();
-    }, 5000);
-  }
-
-  private processSaveQueue(): void {
-    for (const guildId of this.saveQueue) {
-      this.saveGuildAutoresponders(guildId);
-    }
-    this.saveQueue.clear();
-    this.saveTimer = null;
-  }
-
-  private saveGuildAutoresponders(guildId: string): void {
-    const guildData = this.guildCache.get(guildId);
+  protected saveGuildData(guildId: string): void {
+    const guildData = this.dataCache.get(guildId);
     if (!guildData) return;
 
     try {
-      // convert Map to object for JSON serialization
       const dataToSave = {
         ...guildData,
         autoresponders: Object.fromEntries(guildData.autoresponders),
       };
 
-      const filePath = path.join(this.dataPath, 'guilds', `${guildId}.json`);
+      const filePath = path.join(this.dataPath, `${guildId}.json`);
       fs.writeFileSync(filePath, JSON.stringify(dataToSave, null, 2));
-      logger.debug(`saved autoresponders for guild ${guildId}`);
+      logger.debug(`saved ${this.getServiceName()} for guild ${guildId}`);
     } catch (error) {
-      logger.error(`error saving autoresponders for guild ${guildId}:`, error);
+      logger.error(
+        `error saving ${this.getServiceName()} for guild ${guildId}:`,
+        error
+      );
     }
   }
 
@@ -133,7 +84,7 @@ export class AutoresponderService {
       autoresponders: new Map(),
     };
 
-    this.guildCache.set(guildId, guildData);
+    this.dataCache.set(guildId, guildData);
     this.queueSave(guildId);
 
     logger.info(`initialized autoresponders for guild ${guildId}`);
@@ -148,7 +99,7 @@ export class AutoresponderService {
     trigger: string,
     reply: string
   ): { success: boolean; message: string } {
-    let guildData = this.guildCache.get(guildId);
+    let guildData = this.dataCache.get(guildId);
 
     if (!guildData) {
       guildData = this.initializeGuildAutoresponders(guildId, guildName);
@@ -181,7 +132,7 @@ export class AutoresponderService {
     guildId: string,
     trigger: string
   ): { success: boolean; message: string } {
-    const guildData = this.guildCache.get(guildId);
+    const guildData = this.dataCache.get(guildId);
 
     if (!guildData) {
       return {
@@ -211,7 +162,7 @@ export class AutoresponderService {
     trigger: string,
     newReply: string
   ): { success: boolean; message: string; oldReply?: string } {
-    const guildData = this.guildCache.get(guildId);
+    const guildData = this.dataCache.get(guildId);
 
     if (!guildData) {
       return {
@@ -243,12 +194,12 @@ export class AutoresponderService {
     guildId: string,
     trigger: string
   ): Autoresponder | undefined {
-    const guildData = this.guildCache.get(guildId);
+    const guildData = this.dataCache.get(guildId);
     return guildData?.autoresponders.get(trigger);
   }
 
   getGuildAutoresponders(guildId: string): Map<string, Autoresponder> {
-    const guildData = this.guildCache.get(guildId);
+    const guildData = this.dataCache.get(guildId);
     return guildData?.autoresponders || new Map();
   }
 
@@ -256,7 +207,7 @@ export class AutoresponderService {
     guildId: string,
     messageContent: string
   ): Autoresponder | undefined {
-    const guildData = this.guildCache.get(guildId);
+    const guildData = this.dataCache.get(guildId);
 
     if (!guildData) {
       return undefined;
@@ -320,7 +271,7 @@ export class AutoresponderService {
     trigger: string,
     matchMode: 'exact' | 'contains' | 'startswith' | 'endswith' | 'default'
   ): { success: boolean; message: string } {
-    const guildData = this.guildCache.get(guildId);
+    const guildData = this.dataCache.get(guildId);
 
     if (!guildData) {
       return {
@@ -346,16 +297,6 @@ export class AutoresponderService {
     };
   }
 
-  // cleanup method for graceful shutdown
-  cleanup(): void {
-    if (this.saveTimer) {
-      clearTimeout(this.saveTimer);
-      this.processSaveQueue();
-    }
-    logger.debug('autoresponder service cleaned up');
-  }
-
-  // stats methods
   getStats(): {
     totalGuilds: number;
     totalAutoresponders: number;
@@ -364,7 +305,7 @@ export class AutoresponderService {
     let totalAutoresponders = 0;
     let enabledAutoresponders = 0;
 
-    for (const guildData of this.guildCache.values()) {
+    for (const guildData of this.dataCache.values()) {
       totalAutoresponders += guildData.autoresponders.size;
 
       for (const autoresponder of guildData.autoresponders.values()) {
@@ -375,7 +316,7 @@ export class AutoresponderService {
     }
 
     return {
-      totalGuilds: this.guildCache.size,
+      totalGuilds: this.dataCache.size,
       totalAutoresponders,
       enabledAutoresponders,
     };
