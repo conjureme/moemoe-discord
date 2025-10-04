@@ -206,12 +206,7 @@ export class VoiceTranscriptHandler {
     guildId: string
   ): Promise<void> {
     logger.info(
-      `executing ${response.functionCalls!.length} function calls from voice`
-    );
-
-    const functionResults = await services.ai.executeFunctionCalls(
-      response.functionCalls!,
-      mockMessage
+      `${response.functionCalls!.length} function calls will execute after voice playback`
     );
 
     const contentToStore = response.rawContent || response.content;
@@ -227,12 +222,32 @@ export class VoiceTranscriptHandler {
       services
     );
 
+    logger.info(
+      `executing ${response.functionCalls!.length} function calls from voice`
+    );
+
+    const functionResults = await services.ai.executeFunctionCalls(
+      response.functionCalls!,
+      mockMessage
+    );
+
     await this.storeFunctionResults(
       functionResults,
       voiceChannelId,
       guildId,
       services
     );
+
+    const hasLeaveCall = response.functionCalls!.some(
+      (call) => call.name === 'leave_call'
+    );
+
+    if (hasLeaveCall) {
+      logger.debug(
+        'skipping follow-up response - bot left voice channel'
+      );
+      return;
+    }
 
     const updatedContext = await services.memory.getChannelContext(
       voiceChannelId,
