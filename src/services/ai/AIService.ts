@@ -76,6 +76,33 @@ export class AIService {
       const systemPrompt = this.promptBuilder.buildSystemPrompt();
       const messages = this.promptBuilder.buildMessages(conversationHistory);
 
+      if (message?.attachments && message.attachments.size > 0) {
+        const imageAttachments = message.attachments.filter((att) =>
+          att.contentType?.startsWith('image/')
+        );
+
+        if (imageAttachments.size > 0) {
+          const lastUserMessageIndex = messages
+            .map((msg, idx) => ({ msg, idx }))
+            .reverse()
+            .find((item) => item.msg.role === 'user')?.idx;
+
+          if (lastUserMessageIndex !== undefined) {
+            messages[lastUserMessageIndex].images = imageAttachments.map(
+              (att) => att.url
+            );
+
+            const imageCount = imageAttachments.size;
+            const imageText = imageCount === 1 ? '[image attached]' : `[${imageCount} images attached]`;
+            messages[lastUserMessageIndex].content += `\n${imageText}`;
+
+            logger.debug(
+              `added ${imageAttachments.size} images to current message`
+            );
+          }
+        }
+      }
+
       const context: ChatContext = {
         systemPrompt,
         messages,

@@ -301,7 +301,6 @@ export class MemoryService {
       isBot: message.isBot,
       botId: message.botId,
       isSystem: message.isSystem,
-      attachments: message.attachments,
       is_user: !message.isBot && !message.isSystem,
       is_name: true,
       swipe_id: 0,

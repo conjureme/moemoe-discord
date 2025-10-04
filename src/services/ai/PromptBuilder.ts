@@ -164,18 +164,6 @@ export class PromptBuilder {
           name: msg.author,
         };
 
-        // handle image attachments
-        if (msg.attachments && msg.attachments.length > 0) {
-          const imageAttachments = msg.attachments.filter((att) =>
-            att.type.startsWith('image/')
-          );
-          if (imageAttachments.length > 0) {
-            (userMessage as AIMessage).images = imageAttachments.map(
-              (att) => att.url
-            );
-          }
-        }
-
         messages.push(userMessage);
       }
     }
