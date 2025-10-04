@@ -7,17 +7,26 @@ import {
 
 import { serviceManager } from '../ServiceManager';
 import { VoiceConnectionManager } from './VoiceConnectionManager';
+import { VoiceProviderFactory } from './providers/VoiceProviderIndex';
+import { BaseVoiceProvider } from './providers/BaseVoiceProvider';
 
 import { logger } from '../../utils/logger';
-import { Readable } from 'stream';
 
 export class VoiceTranscriptHandler {
   private client: Client;
-  private ttsApiUrl: string;
+  private voiceProvider: BaseVoiceProvider | null;
 
   constructor(client: Client) {
     this.client = client;
-    this.ttsApiUrl = process.env.TTS_API_URL || 'http://localhost:8880';
+    this.voiceProvider = VoiceProviderFactory.create();
+
+    if (this.voiceProvider) {
+      logger.info(
+        `initialized voice provider: ${this.voiceProvider.getName()}`
+      );
+    } else {
+      logger.info('voice mode disabled');
+    }
   }
 
   async handleTranscription(
@@ -101,17 +110,24 @@ export class VoiceTranscriptHandler {
 
   private async playTTSResponse(guildId: string, text: string): Promise<void> {
     try {
+      if (!this.voiceProvider) {
+        logger.debug(
+          'no voice provider configured, please specify one in .env; skipping tts playback!'
+        );
+        return;
+      }
+
       const voiceManager = VoiceConnectionManager.getInstance();
       const connectionInfo = voiceManager.getConnection(guildId);
 
       if (!connectionInfo) {
-        logger.warn('no voice connection found for TTS playback');
+        logger.warn('no voice connection found for tts playback');
         return;
       }
 
-      const audioStream = await this.generateTTS(text);
+      const audioStream = await this.voiceProvider.generateVoice(text);
       if (!audioStream) {
-        logger.error('failed to generate TTS audio');
+        logger.error('failed to generate voice audio');
         return;
       }
 
@@ -132,7 +148,6 @@ export class VoiceTranscriptHandler {
         });
       }
 
-      // create audio resource with arbitrary stream type for RVC's wav
       const resource = createAudioResource(audioStream, {
         inputType: StreamType.Arbitrary,
       });
@@ -173,106 +188,10 @@ export class VoiceTranscriptHandler {
         player.play(resource);
       });
 
-      logger.info('TTS playback completed');
+      logger.info('voice playback completed');
     } catch (error) {
-      logger.error('error playing TTS response:', error);
+      logger.error('error playing voice response:', error);
     }
-  }
-
-  private async generateTTS(text: string): Promise<Readable | null> {
-    try {
-      const requestBody = {
-        model: 'kokoro',
-        input: text,
-        voice: 'af_heart',
-        response_format: 'wav',
-        download_format: 'wav',
-        speed: 1,
-        stream: false,
-        return_download_link: false,
-      };
-
-      logger.debug(`requesting TTS from ${this.ttsApiUrl}/v1/audio/speech`);
-
-      const response = await fetch(`${this.ttsApiUrl}/v1/audio/speech`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        logger.error(
-          `TTS API error: ${response.status} ${response.statusText}`
-        );
-        return null;
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      logger.debug(`received TTS audio: ${buffer.length} bytes`);
-
-      // process through RVC
-      const rvcProcessedBuffer = await this.processWithRVC(buffer);
-      if (!rvcProcessedBuffer) {
-        logger.error('failed to process audio with RVC, using original');
-        return this.bufferToStream(buffer);
-      }
-
-      return this.bufferToStream(rvcProcessedBuffer);
-    } catch (error) {
-      logger.error('error generating TTS:', error);
-      return null;
-    }
-  }
-
-  private async processWithRVC(audioBuffer: Buffer): Promise<Buffer | null> {
-    try {
-      const rvcApiUrl = process.env.RVC_API_URL || 'http://localhost:5001';
-      const base64Audio = audioBuffer.toString('base64');
-
-      logger.debug(
-        `processing audio through RVC (${audioBuffer.length} bytes)`
-      );
-
-      const response = await fetch(`${rvcApiUrl}/convert`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          audio_data: base64Audio,
-        }),
-      });
-
-      if (!response.ok) {
-        logger.error(
-          `RVC API error: ${response.status} ${response.statusText}`
-        );
-        return null;
-      }
-
-      // rvc-python returns audio data
-      const arrayBuffer = await response.arrayBuffer();
-      const processedBuffer = Buffer.from(arrayBuffer);
-
-      logger.debug(`RVC processed audio: ${processedBuffer.length} bytes`);
-      return processedBuffer;
-    } catch (error) {
-      logger.error('error processing with RVC:', error);
-      return null;
-    }
-  }
-
-  private bufferToStream(buffer: Buffer): Readable {
-    const stream = new Readable({
-      read() {},
-    });
-    stream.push(buffer);
-    stream.push(null);
-    return stream;
   }
 
   private async handleFunctionCalls(
