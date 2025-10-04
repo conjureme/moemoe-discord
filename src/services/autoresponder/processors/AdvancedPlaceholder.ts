@@ -72,8 +72,29 @@ export class RangeVariableProcessor extends BaseProcessor {
   pattern = /\{range:(\d+)-(\d+)\}/gi;
 
   process(match: RegExpMatchArray, context: ProcessorContext): string {
-    const min = parseInt(match[1]);
-    const max = parseInt(match[2]);
+    const minStr = match[1];
+    const maxStr = match[2];
+
+    const min = parseInt(minStr);
+    const max = parseInt(maxStr);
+
+    if (isNaN(min) || isNaN(max)) {
+      logger.warn(`invalid range values in ${match[0]}: values must be integers`);
+      return match[0];
+    }
+
+    if (min < 0 || max < 0) {
+      logger.warn(`invalid range values in ${match[0]}: cannot be negative`);
+      return match[0];
+    }
+
+    if (min > max) {
+      logger.warn(
+        `invalid range in ${match[0]}: minimum (${min}) cannot exceed maximum (${max})`
+      );
+      return match[0];
+    }
+
     const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
 
     if (!context.metadata) {

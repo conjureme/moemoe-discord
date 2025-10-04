@@ -9,6 +9,7 @@ import {
 import { Command } from '../types/discord';
 import { serviceManager } from '../services/ServiceManager';
 import { AutoresponderProcessor } from '../services/autoresponder/AutoresponderProcessor';
+import { PlaceholderValidator } from '../utils/PlaceholderValidator';
 
 import { logger } from '../utils/logger';
 
@@ -65,6 +66,17 @@ const boost: Command = {
       switch (subcommand) {
         case 'set': {
           const message = interaction.options.getString('message', true);
+
+          const validation = PlaceholderValidator.validate(message);
+          if (!validation.valid) {
+            const errorMessage =
+              PlaceholderValidator.getErrorMessage(validation);
+            await interaction.reply({
+              content: errorMessage,
+              flags: ['Ephemeral'],
+            });
+            return;
+          }
 
           const result = boostService.setBoostMessage(
             guildId,

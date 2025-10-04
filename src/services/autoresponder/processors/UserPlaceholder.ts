@@ -16,6 +16,11 @@ export class UserPlaceholderProcessor extends BaseProcessor {
     const { message, services } = context;
 
     try {
+      if (targetUserId && !/^\d+$/.test(targetUserId)) {
+        logger.warn(`invalid user id in ${match[0]}: must be numeric`);
+        return match[0];
+      }
+
       let targetUser = message.author;
       let targetMember = message.member;
 

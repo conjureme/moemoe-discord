@@ -15,6 +15,11 @@ export class EmbedPlaceholderProcessor extends BaseProcessor {
     let embedName = match[1];
 
     try {
+      if (!embedName || embedName.trim() === '') {
+        logger.warn(`embed name cannot be empty in ${match[0]}`);
+        return match[0];
+      }
+
       if (!context.guild) {
         logger.warn('embed placeholder used outside of guild context');
         return match[0];

@@ -7,6 +7,7 @@ import {
 
 import { Command } from '../types/discord';
 import { serviceManager } from '../services/ServiceManager';
+import { PlaceholderValidator } from '../utils/PlaceholderValidator';
 import { logger } from '../utils/logger';
 
 const autoresponder: Command = {
@@ -158,6 +159,17 @@ const autoresponder: Command = {
             .toLowerCase();
           const reply = interaction.options.getString('reply', true);
 
+          const validation = PlaceholderValidator.validate(reply);
+          if (!validation.valid) {
+            const errorMessage =
+              PlaceholderValidator.getErrorMessage(validation);
+            await interaction.reply({
+              content: errorMessage,
+              flags: ['Ephemeral'],
+            });
+            return;
+          }
+
           const result = autoresponderService.createAutoresponder(
             guildId,
             guildName,
@@ -256,6 +268,17 @@ const autoresponder: Command = {
             .getString('trigger', true)
             .toLowerCase();
           const newReply = interaction.options.getString('reply', true);
+
+          const validation = PlaceholderValidator.validate(newReply);
+          if (!validation.valid) {
+            const errorMessage =
+              PlaceholderValidator.getErrorMessage(validation);
+            await interaction.reply({
+              content: errorMessage,
+              flags: ['Ephemeral'],
+            });
+            return;
+          }
 
           const result = autoresponderService.editAutoresponder(
             guildId,
