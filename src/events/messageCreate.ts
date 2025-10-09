@@ -38,7 +38,6 @@ const messageCreate: Event = {
 async function checkAutoresponders(message: Message): Promise<void> {
   if (message.channel.type === ChannelType.DM) return;
 
-  // moemoe won't autorespond to mentions since AI will be responding anyway
   if (message.mentions.has(message.client.user!)) return;
 
   const autoresponderService = serviceManager.getAutoresponderService();

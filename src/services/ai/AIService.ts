@@ -148,12 +148,11 @@ export class AIService {
     const botConfig = this.configService.getBotConfig();
     const botName = botConfig.name;
 
-    // remove bot name prefix patterns
     const patterns = [
-      new RegExp(`^${botName}:\\s*`, 'i'), // "moemoe: "
-      new RegExp(`^\\*${botName}\\*:\\s*`, 'i'), // "*moemoe*: "
-      new RegExp(`^\\*\\*${botName}\\*\\*:\\s*`, 'i'), // "**moemoe**: "
-      new RegExp(`^\\[${botName}\\]:\\s*`, 'i'), // "[moemoe]: "
+      new RegExp(`^${botName}:\\s*`, 'i'),
+      new RegExp(`^\\*${botName}\\*:\\s*`, 'i'),
+      new RegExp(`^\\*\\*${botName}\\*\\*:\\s*`, 'i'),
+      new RegExp(`^\\[${botName}\\]:\\s*`, 'i'),
     ];
 
     let cleaned = response;

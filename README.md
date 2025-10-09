@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/db6fb2fc-f917-4bd5-801f-7a8994ac22a0" alt="moemoe logo" width="200">
+  <img src="https://github.com/user-attachments/assets/db6fb2fc-f917-4bd5-801f-7a8994ac22a0" alt="kusako logo" width="200">
   <p><strong>a conversational discord bot with function calling, autoresponder, economy, and other things!</strong></p>
   <p>
     <img src="https://img.shields.io/badge/discord.js-v14-blue?style=flat-square&logo=discord" alt="Discord.js">
@@ -8,21 +8,21 @@
   </p>
 </div>
 
-## what is moemoe-discord?
+## what is kusako-discord?
 
-moemoe-discord is the discord module for moemoe. this serves as a way for moemoe to interact with users in my server along with providing other abilities like embed building, autoresponses, economy, and gambling.
+kusako-discord is the discord module for kusako. this serves as a way for kusako to interact with users in my server along with providing other abilities like embed building, autoresponses, economy, and gambling.
 
 while it was built for my own project, it's fully customizable (more intuitive customization systems are in progress) so that you can add it to your own server and tailor it to your own use. it serves almost as a bridge for an LLM to interact with your server in ways a real user could through functions that allow it to execute commands, send DMs, seeing user activity statuses, and even joining voice calls and chatting.
 
 > [!NOTE]
 >
-> moemoe is still early on in her development. while this discord module is fully functional, there are many areas that need polishing or bug-checking.
+> sako is still early on in her development. while this discord module is fully functional, there are many areas that need polishing or bug-checking.
 >
 > i'm also only one person, so changes and updates may be slow to progress and this project is purely passion. i would greatly appreciate feedback, critiques, and suggestions if you use it. it's also perfectly fine if you are not familiar with TypeScript, discord.js, or coding in general—any and all feedback is helpful!
 >
-> i'll also be looking for artists to commission for moemoe-related art such as emotes, character sheets, among other things.
+> i'll also be looking for artists to commission for sako-related art such as emotes, character sheets, among other things.
 >
-> if you're interested in interacting with moemoe, feel free to join my [discord](https://discord.gg/rn9j69ApJQ) where you can chat with her or interact with some of the discord bot features, or share your art! you're also more than welcome to ask me for techincal support for running your own 'moemoe' or best practices for bringing your server mascot to "life" through an LLM.
+> if you're interested in interacting with sako, feel free to join my [discord](https://discord.gg/rn9j69ApJQ) where you can chat with her or interact with some of the discord bot features, or share your art! you're also more than welcome to ask me for techincal support for running your own 'kusako' or best practices for bringing your server mascot to "life" through an LLM.
 
 ### key features
 
@@ -47,8 +47,8 @@ while it was built for my own project, it's fully customizable (more intuitive c
 
 ```bash
 # clone and install
-git clone https://github.com/conjureme/moemoe-discord.git
-cd moemoe
+git clone https://github.com/conjureme/kusako-discord.git
+cd kusako
 npm install
 
 # configure environment
@@ -104,7 +104,7 @@ depending on the model you use, the default `ai.json` settings may not work. cur
 
 ### chatting
 
-- **mention** `@moemoe` in any channel to start talking
+- **mention** `@kusako` in any channel to start talking
 - **DM** the bot for conversations
 - you can use `/memory type mode:` to switch between channel separated and guild wide memory
 
@@ -125,7 +125,7 @@ just ask naturally in conversation:
 - "send a dm to @user saying hello" => `{{send_dm(user_id="860733331532808213", message="hello tyler!")}}`
 - "update your status to playing minecraft" => `{{update_status(activity_type="playing", activity_text="Minecraft")}}`
 - "join the voice channel i'm in" => `{{join_call()}}`
-- "change your bio to something cool" => this one was temporarily disabled because moemoe continued updating it to nonsense
+- "change your bio to something cool" => this one was temporarily disabled because kusako continued updating it to nonsense
 - "tell me what i'm listening to" => `{{get_user_activity(user_id="860733331532808213")}}` (listening to Jeremy Soule's "Wings of Kynareth" as of writing this btw)
 
 ## development

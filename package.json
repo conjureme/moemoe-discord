@@ -1,5 +1,5 @@
 {
-  "name": "moemoe",
+  "name": "kusako-discord",
   "version": "2.0.0",
   "description": "discord bot with AI integration, function calling, and additional configuration for power users",
   "main": "index.js",
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/conjureme/moemoe.git"
+    "url": "git+https://github.com/conjureme/kusako-discord.git"
   },
   "keywords": [
     "discord",
@@ -26,9 +26,9 @@
   "author": "tyler",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/conjureme/moemoe/issues"
+    "url": "https://github.com/conjureme/kusako-discord/issues"
   },
-  "homepage": "https://github.com/conjureme/moemoe#readme",
+  "homepage": "https://github.com/conjureme/kusako-discord#readme",
   "dependencies": {
     "@discordjs/opus": "^0.10.0",
     "@discordjs/voice": "^0.18.0",
